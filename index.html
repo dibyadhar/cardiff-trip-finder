@@ -928,6 +928,7 @@
       font-size: 15px;
       line-height: 1.5;
     }
+    .trust-actions { display: flex; flex-wrap: wrap; gap: 9px; }
     .trust-action {
       display: inline-flex;
       min-height: 44px;
@@ -940,6 +941,11 @@
       font-size: 13px;
       font-weight: 900;
       text-decoration: none;
+    }
+    .trust-action.is-secondary {
+      color: #fff;
+      background: #171e1b;
+      border: 1px solid #66736d;
     }
     .trust-action svg { width: 17px; height: 17px; }
     .instagram-view { background: #090b0a; }
@@ -1529,6 +1535,8 @@
       .recommended-view, .home-view { padding: 20px 16px 24px; }
       .trust-hero { min-height: 350px; }
       .trust-content h2 { font-size: 32px; }
+      .trust-actions { display: grid; grid-template-columns: 1fr; }
+      .trust-action { justify-content: center; }
       .instagram-view { padding: 20px 16px 24px; }
       .instagram-grid { grid-template-columns: 1fr; }
       .checklist-view, .parking-view { padding: 20px 16px 24px; }
@@ -1630,10 +1638,16 @@
         <p class="weather-eyebrow">Official visitor guide</p>
         <h2 id="nationalTrustTitle">National Trust Wales</h2>
         <p>Explore protected coast, countryside, gardens, historic houses and family days out across Wales.</p>
-        <a class="trust-action" href="https://www.nationaltrust.org.uk/visit/wales" target="_blank" rel="noopener">
-          <i data-lucide="external-link" aria-hidden="true"></i>
-          Open National Trust Wales
-        </a>
+        <div class="trust-actions">
+          <a class="trust-action" href="https://www.nationaltrust.org.uk/visit/wales" target="_blank" rel="noopener">
+            <i data-lucide="external-link" aria-hidden="true"></i>
+            Open National Trust Wales
+          </a>
+          <a class="trust-action is-secondary" href="https://www.getyourguide.com/en-gb/s/?q=Wales&amp;searchSource=3&amp;src=search_bar" target="_blank" rel="noopener">
+            <i data-lucide="ticket" aria-hidden="true"></i>
+            GetYourGuide Wales
+          </a>
+        </div>
       </div>
     </section>
   </section>
