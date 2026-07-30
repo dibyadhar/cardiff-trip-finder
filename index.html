@@ -1,0 +1,3506 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cardiff Trip Finder</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --ink: #162f2b;
+      --muted: #5d6c6c;
+      --line: #cbd8d2;
+      --soft: #eef5f1;
+      --card: #ffffff;
+      --green: #2f6f4f;
+      --blue: #2f5f83;
+      --teal: #008b99;
+      --gold: #b97d28;
+      --red: #9b5148;
+      --purple: #6f6374;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: #f7faf8;
+    }
+    body > header {
+      padding: 22px clamp(16px, 4vw, 42px) 14px;
+      background: #101412;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(28px, 5vw, 46px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      max-width: 920px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    .page-tabs {
+      display: flex;
+      gap: 4px;
+      margin-top: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .page-tab {
+      appearance: none;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .page-tab[aria-selected="true"] {
+      color: var(--ink);
+      border-bottom-color: var(--green);
+    }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 12px clamp(16px, 4vw, 42px);
+      background: rgba(247,250,248,.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .weather-overview {
+      padding: 18px clamp(16px, 4vw, 42px) 20px;
+      background: #0d1210;
+      border-bottom: 1px solid var(--line);
+    }
+    .weather-overview-inner {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .weather-overview-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .weather-overview-heading h2 {
+      margin: 2px 0 3px;
+      font-size: 21px;
+    }
+    .weather-eyebrow {
+      margin: 0;
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .weather-updated {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .weather-refresh {
+      min-width: 44px;
+      min-height: 44px;
+      border: 1px solid #34423b;
+      border-radius: 7px;
+      padding: 8px 12px;
+      color: var(--ink);
+      background: #171e1b;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .weather-refresh:disabled { cursor: wait; opacity: .6; }
+    .weather-summary-grid {
+      display: grid;
+      grid-template-columns: 1.35fr repeat(4, minmax(145px, 1fr));
+      gap: 9px;
+    }
+    .weather-summary {
+      min-width: 0;
+      border: 1px solid #293730;
+      border-radius: 7px;
+      padding: 11px 12px;
+      background: #141b18;
+    }
+    .weather-summary.is-primary {
+      border-color: rgba(56, 184, 182, .58);
+      background: #13201d;
+    }
+    .weather-place {
+      display: block;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .weather-reading {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 3px;
+    }
+    .weather-temperature {
+      color: var(--ink);
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .weather-summary.is-primary .weather-temperature { font-size: 28px; }
+    .weather-condition {
+      overflow: hidden;
+      color: #dbe4df;
+      font-size: 12px;
+      font-weight: 750;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .weather-wind {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .weather-trend-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 9px;
+    }
+    .weather-trend {
+      min-width: 0;
+      border: 1px solid #293730;
+      border-radius: 7px;
+      padding: 11px 12px;
+      background: #111714;
+    }
+    .weather-trend-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 9px;
+    }
+    .weather-trend-heading strong { color: var(--ink); font-size: 13px; }
+    .weather-trend-heading span { color: var(--muted); font-size: 11px; }
+    .trend-points {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .trend-point {
+      min-width: 0;
+      padding: 0 7px;
+      border-left: 1px solid #26322d;
+      text-align: center;
+    }
+    .trend-point:first-child { padding-left: 0; border-left: 0; }
+    .trend-point:last-child { padding-right: 0; }
+    .trend-time, .trend-rain {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .trend-temperature {
+      display: block;
+      margin: 3px 0 5px;
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 900;
+    }
+    .rain-meter {
+      height: 3px;
+      margin: 0 auto 4px;
+      overflow: hidden;
+      border-radius: 3px;
+      background: #25312c;
+    }
+    .rain-meter span {
+      display: block;
+      width: var(--rain);
+      height: 100%;
+      background: var(--blue);
+    }
+    .temperature-cold { color: #78a9ff; }
+    .temperature-cool { color: #54cad5; }
+    .temperature-mild { color: #65d881; }
+    .temperature-warm { color: #f59e42; }
+    .temperature-hot { color: #ff5c5c; }
+    .weather-condition {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .weather-icon {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      stroke-width: 2;
+    }
+    .trend-weather-icon {
+      width: 15px;
+      height: 15px;
+      margin: 4px auto 0;
+    }
+    .icon-clear { color: #f6c94f; }
+    .icon-cloud { color: #aab5b0; }
+    .icon-fog { color: #8ba09a; }
+    .icon-rain { color: #67a9ff; }
+    .icon-snow { color: #9fe2f2; }
+    .icon-thunder { color: #d79af4; }
+    .weather-map-panel {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+    .weather-map-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .weather-map-heading h3 { margin: 0; font-size: 17px; }
+    .weather-map-heading p { margin: 0; color: var(--muted); font-size: 11px; }
+    .wales-weather-map {
+      width: 100%;
+      height: 460px;
+      overflow: hidden;
+      border: 1px solid #34433c;
+      border-radius: 7px;
+      background: #121916;
+    }
+    .weather-map-loading {
+      display: grid;
+      min-height: 100%;
+      margin: 0;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .weather-map-marker {
+      display: flex;
+      width: 46px;
+      height: 46px;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      background: rgba(10, 14, 12, .94);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .42);
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .map-weather-icon { width: 14px; height: 14px; }
+    .weather-map-marker.temperature-cold { background: #17243a; }
+    .weather-map-marker.temperature-cool { background: #123034; }
+    .weather-map-marker.temperature-mild { background: #17341f; }
+    .weather-map-marker.temperature-warm { background: #382e16; }
+    .weather-map-marker.temperature-hot { background: #3b201c; }
+    .weather-map-popup { min-width: 170px; color: #17231e; line-height: 1.45; }
+    .weather-map-popup strong { display: block; margin-bottom: 3px; font-size: 14px; }
+    .weather-map-popup span { font-weight: 900; }
+    .weather-map-popup p { margin: 2px 0; font-size: 12px; }
+    .leaflet-control-attribution { font-size: 9px; }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .chip {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .chip[aria-pressed="true"] {
+      color: white;
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .city-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .city-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .city-chip {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .city-chip[aria-pressed="true"] {
+      color: white;
+      background: var(--purple);
+      border-color: var(--purple);
+    }
+    select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 10px;
+      background: white;
+      color: var(--ink);
+      font-weight: 700;
+    }
+    main {
+      padding: 20px clamp(16px, 4vw, 42px) 34px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .photo {
+      height: 168px;
+      background: #dce9e3;
+      overflow: hidden;
+      position: relative;
+    }
+    .photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .distance {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      background: rgba(255,255,255,.92);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .google-rating {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      border: 1px solid rgba(231, 189, 67, .5);
+      border-radius: 999px;
+      padding: 6px 9px;
+      color: #f4d267;
+      background: rgba(12, 16, 14, .92);
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .google-rating small {
+      color: #c9d1cd;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 13px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      flex: 1;
+    }
+    h2 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.16;
+      letter-spacing: 0;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .tag {
+      color: white;
+      border-radius: 999px;
+      padding: 4px 7px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .desc, .detail {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+    .facts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+    .fact {
+      background: var(--soft);
+      border-radius: 7px;
+      padding: 8px;
+      min-height: 52px;
+    }
+    .fact b {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 3px;
+    }
+    .fact span {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .access-fact { grid-column: 1 / -1; }
+    .live-weather {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      border: 1px solid #2b3b34;
+      border-radius: 7px;
+      padding: 7px 9px;
+      color: #dce5e0;
+      background: #17201c;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .live-weather b {
+      margin-right: 5px;
+      color: var(--teal);
+    }
+    .live-weather.is-unavailable { color: var(--muted); }
+    .nearby {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: auto;
+      flex-wrap: wrap;
+    }
+    .actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      padding: 8px 10px;
+      min-height: 36px;
+      font-weight: 800;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .primary {
+      color: white;
+      background: var(--green);
+    }
+    .secondary {
+      color: var(--green);
+      border: 1px solid var(--line);
+      background: white;
+    }
+    .empty {
+      display: none;
+      padding: 30px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: white;
+    }
+    footer {
+      padding: 0 clamp(16px, 4vw, 42px) 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    [role="tabpanel"][hidden] { display: none; }
+    .home-view {
+      padding: 24px clamp(16px, 4vw, 42px) 38px;
+    }
+    .stay-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 480px) minmax(280px, 1fr);
+      gap: clamp(22px, 5vw, 58px);
+      align-items: start;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+    .stay-photo {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--card);
+    }
+    .stay-photo img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .stay-details h2 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+    .stay-lead {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .stay-facts {
+      margin: 0 0 22px;
+      border-top: 1px solid var(--line);
+    }
+    .stay-fact {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 16px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .stay-fact dt {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .stay-fact dd {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .stay-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+    .stay-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      border-radius: 7px;
+      padding: 9px 13px;
+      background: var(--green);
+      color: white;
+      font-size: 14px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .stay-actions .stay-secondary {
+      color: var(--green);
+      background: white;
+      border: 1px solid var(--line);
+    }
+    .stay-section {
+      margin-top: 22px;
+    }
+    .stay-section h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .amenity-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .amenity-list li {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 7px 9px;
+      color: var(--ink);
+      background: var(--soft);
+      font-size: 13px;
+    }
+    .arrival-note {
+      margin: 0;
+      padding: 12px;
+      border-left: 3px solid var(--gold);
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .store-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .store-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--card);
+    }
+    .store-card h4 {
+      margin: 0 0 5px;
+      font-size: 15px;
+    }
+    .store-type {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .store-card p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .store-card a {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .store-card a + a::before {
+      content: " · ";
+      color: var(--muted);
+    }
+    .order-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .order-links a {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: var(--green);
+      background: white;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .recommended-view {
+      padding: 24px clamp(16px, 4vw, 42px) 42px;
+    }
+    .recommended-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    .recommended-intro {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+    .recommended-intro h2 {
+      margin-bottom: 6px;
+      font-size: 30px;
+    }
+    .recommended-intro p {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .pdf-link {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 11px;
+      color: var(--green);
+      background: white;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .day-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .day-plan {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--card);
+    }
+    .day-heading {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 12px;
+      padding: 14px;
+      background: var(--soft);
+      border-bottom: 1px solid var(--line);
+    }
+    .day-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      color: white;
+      background: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .day-heading h3 {
+      margin: 0 0 4px;
+      font-size: 19px;
+    }
+    .day-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .journey-list {
+      margin: 0;
+      padding: 4px 14px;
+      list-style: none;
+    }
+    .journey-list li {
+      display: grid;
+      grid-template-columns: 94px 1fr;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .journey-list li:last-child { border-bottom: 0; }
+    .journey-time {
+      color: var(--green);
+      font-weight: 800;
+    }
+    .day-warning {
+      margin: 4px 14px 12px;
+      padding: 10px;
+      border-left: 3px solid var(--gold);
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .day-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 14px 14px;
+      margin-top: auto;
+    }
+    .day-actions a {
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: white;
+      background: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .day-actions .route-secondary {
+      color: var(--green);
+      background: white;
+      border: 1px solid var(--line);
+    }
+    .alternatives {
+      margin-top: 24px;
+    }
+    .alternatives h3 { margin: 0 0 10px; }
+    .alternative-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .alternative {
+      border-top: 3px solid var(--green);
+      padding: 12px 0 0;
+    }
+    .alternative h4 { margin: 0 0 7px; }
+    .alternative ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .stay-note {
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .national-trust-view { padding: 0; background: #090b0a; }
+    .trust-hero {
+      position: relative;
+      min-height: 380px;
+      display: flex;
+      align-items: end;
+      overflow: hidden;
+      background: url("assets/places/henrhyd-falls.jpg") center 42% / cover no-repeat;
+    }
+    .trust-hero::before {
+      position: absolute;
+      inset: 0;
+      content: "";
+      background: rgba(5, 10, 7, .62);
+    }
+    .trust-content {
+      position: relative;
+      z-index: 1;
+      width: min(720px, 100%);
+      padding: clamp(28px, 6vw, 64px) clamp(16px, 5vw, 56px);
+    }
+    .trust-content h2 {
+      margin: 4px 0 10px;
+      color: #fff;
+      font-size: 38px;
+      line-height: 1.05;
+    }
+    .trust-content p:not(.weather-eyebrow) {
+      max-width: 600px;
+      margin: 0 0 20px;
+      color: #e1e8e4;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .trust-action {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      gap: 8px;
+      border-radius: 7px;
+      padding: 10px 13px;
+      color: #071009;
+      background: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+    .trust-action svg { width: 17px; height: 17px; }
+    .instagram-view { background: #090b0a; }
+    .instagram-inner { max-width: 1180px; margin: 0 auto; }
+    .instagram-intro { margin-bottom: 18px; }
+    .instagram-intro h2 { margin: 0 0 7px; font-size: 28px; }
+    .instagram-intro p { max-width: 720px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .instagram-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .instagram-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+    }
+    .instagram-card img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      display: block;
+      object-fit: cover;
+    }
+    .instagram-card-content { padding: 12px; }
+    .instagram-card h3 { margin: 0 0 4px; font-size: 16px; }
+    .instagram-card p { margin: 0 0 11px; color: var(--muted); font-size: 12px; }
+    .instagram-link {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      gap: 7px;
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: #071009;
+      background: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+    .instagram-link svg { width: 16px; height: 16px; }
+    .checklist-view, .parking-view { background: #090b0a; }
+    .checklist-inner { max-width: 820px; margin: 0 auto; }
+    .checklist-intro { margin-bottom: 18px; }
+    .checklist-intro h2 { margin: 0 0 7px; font-size: 28px; }
+    .checklist-intro p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .checklist-sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .checklist-sync-status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+    }
+    .checklist-sync-status.is-online::before { background: var(--green); }
+    .checklist-sync-status.is-offline::before { background: var(--red); }
+    .parking-inner { max-width: 720px; margin: 0 auto; }
+    .parking-intro { margin-bottom: 18px; }
+    .parking-intro h2 { margin: 0 0 7px; font-size: 28px; }
+    .parking-intro p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .parking-tool {
+      margin-bottom: 18px;
+      border: 1px solid #2f4038;
+      border-radius: 8px;
+      padding: 14px;
+      background: #121916;
+    }
+    .parking-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .parking-heading svg { width: 18px; height: 18px; color: var(--blue); }
+    .parking-heading h3 { margin: 0; font-size: 16px; }
+    .parking-status { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .parking-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .parking-actions button,
+    .parking-actions a {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid #34423b;
+      border-radius: 7px;
+      padding: 9px 11px;
+      color: var(--ink);
+      background: #171e1b;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 900;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .parking-actions .save-parking { color: #071009; background: var(--green); border-color: var(--green); }
+    .parking-actions .save-parking:disabled { cursor: wait; opacity: .6; }
+    .parking-actions .clear-parking { width: 44px; padding: 0; color: #ef806f; }
+    .parking-actions [hidden] { display: none; }
+    .parking-actions svg { width: 17px; height: 17px; }
+    .checklist-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px auto;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .checklist-form input,
+    .checklist-form select {
+      min-width: 0;
+      min-height: 44px;
+      border: 1px solid #34423b;
+      border-radius: 7px;
+      padding: 9px 10px;
+      color: var(--ink);
+      background: #151b18;
+      font: inherit;
+      font-size: 14px;
+    }
+    .checklist-add,
+    .clear-completed {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 0;
+      border-radius: 7px;
+      padding: 9px 12px;
+      color: #071009;
+      background: var(--green);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .checklist-add svg, .clear-completed svg, .item-delete svg { width: 17px; height: 17px; }
+    .checklist-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .clear-completed {
+      min-height: 38px;
+      color: var(--ink);
+      background: #171e1b;
+      border: 1px solid #34423b;
+    }
+    .clear-completed:disabled { cursor: default; opacity: .45; }
+    .trip-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .checklist-item {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 11px;
+      min-height: 58px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 10px;
+      background: var(--card);
+    }
+    .checklist-item input { width: 20px; height: 20px; accent-color: var(--green); }
+    .item-text { display: block; overflow-wrap: anywhere; color: var(--ink); font-size: 14px; font-weight: 800; }
+    .item-category { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .checklist-item.is-done .item-text { color: var(--muted); text-decoration: line-through; }
+    .item-delete {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #3b4742;
+      border-radius: 7px;
+      color: #ef806f;
+      background: #171e1b;
+      cursor: pointer;
+    }
+    .checklist-empty { margin: 18px 0 0; color: var(--muted); font-size: 13px; }
+    @media (max-width: 680px) {
+      .facts { grid-template-columns: 1fr; }
+      .photo { height: 148px; }
+      .chip { padding: 8px 10px; }
+      .stay-layout { grid-template-columns: 1fr; }
+      .stay-details h2 { font-size: 25px; }
+      .stay-fact { grid-template-columns: 92px 1fr; }
+      .store-grid { grid-template-columns: 1fr; }
+      .recommended-intro { display: block; }
+      .pdf-link { display: inline-block; margin-top: 12px; }
+      .day-grid, .alternative-grid { grid-template-columns: 1fr; }
+      .journey-list li { grid-template-columns: 82px 1fr; }
+    }
+
+    /* Dark travel dashboard theme */
+    :root {
+      color-scheme: dark;
+      --ink: #f1f5f2;
+      --muted: #9ca9a3;
+      --line: #2d3833;
+      --soft: #1b2420;
+      --card: #141a17;
+      --green: #49d66f;
+      --blue: #5794ee;
+      --teal: #38b8b6;
+      --gold: #d5aa38;
+      --red: #ce7064;
+      --purple: #a38f9d;
+    }
+    * { scrollbar-color: #34423b #0b0e0d; }
+    ::selection { color: #071009; background: var(--green); }
+    body {
+      background: #090b0a;
+      min-height: 100vh;
+    }
+    body > header {
+      padding-top: 20px;
+      padding-bottom: 0;
+      background: #101412;
+      border-color: var(--line);
+    }
+    h1 {
+      color: var(--ink);
+      font-size: 34px;
+      line-height: 1.08;
+    }
+    .subtitle { color: var(--muted); }
+    .page-tabs {
+      gap: 18px;
+      margin-top: 18px;
+      border-color: transparent;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .page-tabs::-webkit-scrollbar { display: none; }
+    .page-tab {
+      flex: 0 0 auto;
+      color: #86928d;
+      border-bottom-width: 2px;
+      padding: 10px 2px 12px;
+      transition: color .2s ease, border-color .2s ease;
+    }
+    .page-tab:hover { color: var(--ink); }
+    .page-tab[aria-selected="true"] {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+    .mobile-menu-toggle,
+    .mobile-nav-heading,
+    .mobile-menu-backdrop {
+      display: none;
+    }
+    .mobile-nav-drawer { display: contents; }
+    .toolbar {
+      top: 0;
+      padding-top: 13px;
+      padding-bottom: 13px;
+      background: rgba(9, 11, 10, .92);
+      border-color: var(--line);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .16);
+    }
+    .chip, .city-chip, select {
+      color: var(--ink);
+      background: #151b18;
+      border-color: #33413a;
+      transition: color .2s ease, background .2s ease, border-color .2s ease, transform .2s ease;
+    }
+    .chip:hover, .city-chip:hover {
+      color: #ffffff;
+      border-color: #52635b;
+      transform: translateY(-1px);
+    }
+    .chip[aria-pressed="true"] {
+      color: #071009;
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .city-chip[aria-pressed="true"] {
+      color: #0b0c0b;
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+    .city-label, .meta-row { color: var(--muted); }
+    select:focus, button:focus-visible, a:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+    main { padding-top: 24px; }
+    .grid { gap: 18px; }
+    .card {
+      background: var(--card);
+      border-color: var(--line);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, .22);
+      transition: transform .28s ease, border-color .28s ease, box-shadow .28s ease;
+    }
+    .card.is-recommended {
+      border-color: #e7bd43;
+      box-shadow:
+        0 0 0 1px rgba(231, 189, 67, .72),
+        0 0 22px rgba(231, 189, 67, .32),
+        0 16px 38px rgba(0, 0, 0, .28);
+    }
+    .photo { background: #202a25; }
+    .photo img { transition: transform .45s ease, filter .3s ease; }
+    .distance {
+      color: var(--ink);
+      background: rgba(12, 16, 14, .9);
+      border: 1px solid rgba(255, 255, 255, .12);
+      backdrop-filter: blur(8px);
+    }
+    .content { background: var(--card); }
+    h2, h3, h4 { color: var(--ink); }
+    .desc, .detail { color: var(--muted); }
+    .fact {
+      background: #1a231f;
+      border: 1px solid #26332d;
+    }
+    .fact b, .journey-time { color: var(--green); }
+    .nearby { border-color: var(--line); }
+    .actions a, .stay-actions a, .day-actions a {
+      transition: transform .2s ease, filter .2s ease, border-color .2s ease;
+    }
+    .primary, .stay-actions a, .day-actions a {
+      color: #071009;
+      background: var(--green);
+    }
+    .secondary,
+    .stay-actions .stay-secondary,
+    .day-actions .route-secondary,
+    .pdf-link,
+    .order-links a {
+      color: var(--ink);
+      background: #171e1b;
+      border-color: #34423b;
+    }
+    .empty {
+      color: var(--muted);
+      background: var(--card);
+      border-color: #3c4943;
+    }
+    footer { color: #7f8d86; }
+    .home-view, .recommended-view { background: #090b0a; }
+    .stay-photo {
+      background: var(--card);
+      border-color: var(--line);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, .3);
+    }
+    .stay-details h2, .recommended-intro h2 { color: var(--ink); }
+    .stay-lead, .recommended-intro p { color: var(--muted); }
+    .stay-facts, .stay-fact { border-color: var(--line); }
+    .stay-fact dt { color: var(--green); }
+    .amenity-list li {
+      color: #dce4df;
+      background: #19211e;
+      border-color: #2e3b35;
+    }
+    .arrival-note, .day-warning {
+      color: #b6c1bc;
+      background: #1a211e;
+    }
+    .store-card {
+      background: #131916;
+      border-color: var(--line);
+      transition: border-color .2s ease, transform .2s ease;
+    }
+    .store-type, .store-card a { color: var(--green); }
+    .store-card p { color: var(--muted); }
+    .day-plan {
+      background: var(--card);
+      border-color: var(--line);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, .22);
+      transition: transform .28s ease, border-color .28s ease;
+    }
+    .day-heading {
+      background: #1a221f;
+      border-color: var(--line);
+    }
+    .day-number {
+      color: #071009;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(73, 214, 111, .1);
+    }
+    .journey-list li { border-color: var(--line); }
+    .alternative { border-color: var(--gold); }
+    [role="tabpanel"]:not([hidden]) { animation: panelIn .32s ease-out; }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (hover: hover) {
+      .card:hover {
+        transform: translateY(-4px);
+        border-color: #46574f;
+        box-shadow: 0 22px 46px rgba(0, 0, 0, .34);
+      }
+      .card.is-recommended:hover {
+        border-color: #f2cb54;
+        box-shadow:
+          0 0 0 1px rgba(242, 203, 84, .82),
+          0 0 28px rgba(242, 203, 84, .4),
+          0 22px 46px rgba(0, 0, 0, .34);
+      }
+      .card:hover .photo img { transform: scale(1.035); filter: saturate(1.06); }
+      .store-card:hover, .day-plan:hover {
+        transform: translateY(-2px);
+        border-color: #46574f;
+      }
+      .actions a:hover, .stay-actions a:hover, .day-actions a:hover, .order-links a:hover, .pdf-link:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.08);
+      }
+    }
+    @media (max-width: 900px) {
+      body.menu-open { overflow: hidden; }
+      .mobile-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        margin-top: 14px;
+        border: 1px solid #34423b;
+        border-radius: 7px;
+        padding: 9px 12px;
+        color: var(--ink);
+        background: #171e1b;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .mobile-menu-toggle svg,
+      .mobile-nav-heading svg {
+        width: 20px;
+        height: 20px;
+      }
+      .mobile-menu-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, .62);
+        backdrop-filter: blur(2px);
+      }
+      .mobile-menu-backdrop[hidden] { display: none; }
+      .mobile-nav-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 80;
+        display: flex;
+        flex-direction: column;
+        width: min(84vw, 320px);
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        background: #101412;
+        border-left: 1px solid #34423b;
+        box-shadow: -18px 0 45px rgba(0, 0, 0, .42);
+        transform: translateX(105%);
+        transition: transform .24s ease;
+      }
+      .mobile-nav-drawer.is-open { transform: translateX(0); }
+      .mobile-nav-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 64px;
+        padding: 10px 12px 10px 18px;
+        color: var(--ink);
+        border-bottom: 1px solid #293730;
+      }
+      .mobile-menu-close {
+        display: inline-grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: 7px;
+        color: var(--ink);
+        background: transparent;
+        cursor: pointer;
+      }
+      .mobile-nav-drawer .page-tabs {
+        position: static;
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        margin: 0;
+        padding: 10px 12px 24px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border: 0;
+      }
+      .mobile-nav-drawer .page-tab {
+        flex: 0 0 auto;
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        padding: 12px;
+        text-align: left;
+        font-size: 14px;
+      }
+      .mobile-nav-drawer .page-tab[aria-selected="true"] {
+        color: var(--green);
+        background: rgba(73, 214, 111, .1);
+        border-color: rgba(73, 214, 111, .24);
+      }
+    }
+    @media (max-width: 680px) {
+      .weather-overview { padding-top: 15px; }
+      .weather-overview-heading { align-items: center; }
+      .weather-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .weather-summary.is-primary { grid-column: 1 / -1; }
+      .weather-trend-grid { grid-template-columns: 1fr; }
+      .wales-weather-map { height: 390px; }
+      .weather-map-heading { align-items: start; flex-direction: column; gap: 3px; }
+      .weather-refresh { padding: 8px 10px; }
+      body {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      body > header {
+        padding: 16px 16px 14px;
+      }
+      h1 { font-size: 28px; }
+      .subtitle {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .toolbar {
+        position: static;
+        padding: 12px 0 10px;
+        box-shadow: none;
+        overflow: hidden;
+      }
+      .filters, .city-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 0 16px 5px;
+        scrollbar-width: none;
+        scroll-snap-type: x proximity;
+      }
+      .filters::-webkit-scrollbar, .city-row::-webkit-scrollbar { display: none; }
+      .chip, .city-chip {
+        flex: 0 0 auto;
+        min-height: 42px;
+        scroll-snap-align: start;
+      }
+      .city-label { flex: 0 0 auto; }
+      .meta-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px;
+        margin: 8px 16px 0;
+      }
+      .meta-row > #count { grid-column: 1 / -1; }
+      .meta-row label {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+      .meta-row select {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+      }
+      main { padding: 16px; }
+      .grid { grid-template-columns: 1fr; }
+      .photo { height: 205px; }
+      .content { padding: 14px; }
+      .actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .actions a { min-height: 44px; }
+      .recommended-view, .home-view { padding: 20px 16px 24px; }
+      .trust-hero { min-height: 350px; }
+      .trust-content h2 { font-size: 32px; }
+      .instagram-view { padding: 20px 16px 24px; }
+      .instagram-grid { grid-template-columns: 1fr; }
+      .checklist-view, .parking-view { padding: 20px 16px 24px; }
+      .checklist-form { grid-template-columns: minmax(0, 1fr) auto; }
+      .checklist-form input { grid-column: 1 / -1; }
+      .parking-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .parking-actions .save-parking { grid-column: 1 / -1; }
+      .stay-layout { gap: 18px; }
+      .stay-fact { grid-template-columns: 78px 1fr; gap: 10px; }
+      .stay-actions { display: grid; grid-template-columns: 1fr; }
+      .stay-actions a { min-height: 44px; }
+      .recommended-intro h2 { font-size: 25px; }
+      .day-heading { grid-template-columns: 52px 1fr; padding: 12px; }
+      .day-number { width: 46px; height: 46px; font-size: 12px; }
+      .journey-list { padding-left: 12px; padding-right: 12px; }
+      .journey-list li { grid-template-columns: 76px 1fr; gap: 8px; }
+      .day-actions { display: grid; grid-template-columns: 1fr; padding: 0 12px 12px; }
+      .day-actions a { min-height: 44px; text-align: center; }
+      .order-links { display: grid; grid-template-columns: 1fr 1fr; }
+      .order-links a { min-height: 42px; text-align: center; }
+      footer { padding: 0 16px 24px; }
+    }
+    @media (max-width: 360px) {
+      .meta-row { grid-template-columns: 1fr; }
+      .meta-row > #count { grid-column: 1; }
+      .mobile-nav-drawer { width: 88vw; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cardiff Trip Finder</h1>
+    <p class="subtitle">Choose the type of place you want, then compare realistic driving distance from CF10 3EA, direction, best time to go, official links, map navigation and useful nearby stops.</p>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavDrawer" aria-expanded="false">
+      <i data-lucide="menu" aria-hidden="true"></i>Menu
+    </button>
+    <button class="mobile-menu-backdrop" id="mobileMenuBackdrop" type="button" aria-label="Close navigation menu" hidden></button>
+    <aside class="mobile-nav-drawer" id="mobileNavDrawer" aria-label="Trip navigation">
+      <div class="mobile-nav-heading">
+        <strong>Trip pages</strong>
+        <button class="mobile-menu-close" id="mobileMenuClose" type="button" aria-label="Close navigation menu"><i data-lucide="x" aria-hidden="true"></i></button>
+      </div>
+      <nav class="page-tabs" role="tablist" aria-label="Trip pages">
+        <button class="page-tab" id="exploreTab" type="button" role="tab" aria-selected="true" aria-controls="exploreView">Explore</button>
+        <button class="page-tab" id="weatherTab" type="button" role="tab" aria-selected="false" aria-controls="weatherView">Weather</button>
+        <button class="page-tab" id="recommendedTab" type="button" role="tab" aria-selected="false" aria-controls="recommendedView">Recommended</button>
+        <button class="page-tab" id="homeStayTab" type="button" role="tab" aria-selected="false" aria-controls="homeView">Stay</button>
+        <button class="page-tab" id="parkingTab" type="button" role="tab" aria-selected="false" aria-controls="parkingView">Parking</button>
+        <button class="page-tab" id="checklistTab" type="button" role="tab" aria-selected="false" aria-controls="checklistView">My list</button>
+        <button class="page-tab" id="instagramTab" type="button" role="tab" aria-selected="false" aria-controls="instagramView">Instagram</button>
+      </nav>
+    </aside>
+  </header>
+
+  <div id="exploreView" role="tabpanel" aria-labelledby="exploreTab">
+  <section class="toolbar" aria-label="Filters">
+    <div class="filters" id="filters"></div>
+    <div class="city-row" id="cityFilters" aria-label="City selection">
+      <span class="city-label">Area</span>
+    </div>
+    <div class="meta-row">
+      <span id="count"></span>
+      <label>Sort
+        <select id="sort">
+          <option value="distance">Nearest first</option>
+          <option value="popularity">Most popular</option>
+          <option value="scenic">Most scenic</option>
+          <option value="name">Name</option>
+          <option value="time">Drive time</option>
+          <option value="accessibility">Easiest access</option>
+        </select>
+      </label>
+      <label>Accessibility
+        <select id="accessibilityFilter">
+          <option value="all">All levels</option>
+          <option value="Easy">Easy</option>
+          <option value="Moderate">Moderate</option>
+          <option value="Challenging">Challenging</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <main>
+    <section class="grid" id="cards" aria-live="polite"></section>
+    <section class="empty" id="empty">No places match those filters. Try turning one off.</section>
+  </main>
+
+  <section class="national-trust-view" aria-labelledby="nationalTrustTitle">
+    <section class="trust-hero">
+      <div class="trust-content">
+        <p class="weather-eyebrow">Official visitor guide</p>
+        <h2 id="nationalTrustTitle">National Trust Wales</h2>
+        <p>Explore protected coast, countryside, gardens, historic houses and family days out across Wales.</p>
+        <a class="trust-action" href="https://www.nationaltrust.org.uk/visit/wales" target="_blank" rel="noopener">
+          <i data-lucide="external-link" aria-hidden="true"></i>
+          Open National Trust Wales
+        </a>
+      </div>
+    </section>
+  </section>
+
+  <footer>
+    Base used for all navigation links: CF10 3EA, Cardiff. Google ratings checked 30 July 2026; places below 4.0 are excluded. Ratings can change. Accessibility levels are planning guidance, not formal access audits. Recheck weather, tides, opening hours, booking requirements and parking before travelling.
+  </footer>
+  </div>
+
+  <div class="weather-view" id="weatherView" role="tabpanel" aria-labelledby="weatherTab" hidden>
+    <section class="weather-overview" aria-labelledby="weatherOverviewTitle">
+      <div class="weather-overview-inner">
+        <header class="weather-overview-heading">
+          <div>
+            <p class="weather-eyebrow">Live conditions and 12-hour trend</p>
+            <h2 id="weatherOverviewTitle">South &amp; Mid Wales weather</h2>
+            <p class="weather-updated" id="weatherUpdated" aria-live="polite">Connecting to live weather...</p>
+          </div>
+          <button class="weather-refresh" id="weatherRefresh" type="button" aria-label="Refresh live weather">Refresh</button>
+        </header>
+        <div class="weather-summary-grid" id="weatherOverview" aria-live="polite" aria-busy="true"></div>
+        <div class="weather-trend-grid" id="weatherTrend" aria-live="polite" aria-busy="true"></div>
+        <section class="weather-map-panel" aria-labelledby="weatherMapTitle">
+          <header class="weather-map-heading">
+            <h3 id="weatherMapTitle">Live weather map</h3>
+            <p>Tap a marker for temperature, current rain and wind</p>
+          </header>
+          <div class="wales-weather-map" id="walesWeatherMap" aria-label="Interactive weather map of Wales">
+            <p class="weather-map-loading">Open this tab to load the live map.</p>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <main class="home-view" id="homeView" role="tabpanel" aria-labelledby="homeStayTab" hidden>
+    <div class="stay-layout">
+      <figure class="stay-photo">
+        <img src="assets/cardiff-home-stay.jpeg" alt="Cottage in Bute Park at Blackweir Cottages in Cardiff">
+      </figure>
+      <section class="stay-details" aria-labelledby="stayTitle">
+        <h2 id="stayTitle">Cottage in Bute Park</h2>
+        <p class="stay-lead">Entire townhouse in Cardiff, close to Bute Park, Cardiff University and the city centre.</p>
+        <dl class="stay-facts">
+          <div class="stay-fact"><dt>Stay</dt><dd>1-6 August 2026</dd></div>
+          <div class="stay-fact"><dt>Capacity</dt><dd>5 guests · 3 bedrooms · 3 beds · 2 bathrooms</dd></div>
+          <div class="stay-fact"><dt>Beds</dt><dd>1 double bed · 1 small double bed · 1 single bed</dd></div>
+          <div class="stay-fact"><dt>Host</dt><dd>Fiona · Superhost · 12 years hosting</dd></div>
+          <div class="stay-fact"><dt>Rating</dt><dd>4.9 out of 5 · 321 reviews · Top 10% of eligible Airbnb homes</dd></div>
+          <div class="stay-fact"><dt>Check-in</dt><dd>15:00-20:00 · Self check-in with a lockbox</dd></div>
+          <div class="stay-fact"><dt>Checkout</dt><dd>Before 10:00</dd></div>
+          <div class="stay-fact"><dt>Address</dt><dd>1 Blackweir Cottage House<br>Cardiff, Wales CF10 3EA</dd></div>
+          <div class="stay-fact"><dt>Parking</dt><dd>One free space on the ambulance-yard side of the house</dd></div>
+        </dl>
+        <div class="stay-actions">
+          <a href="https://www.google.com/maps/dir/?api=1&amp;destination=1%20Blackweir%20Cottage%20House%2C%20Cardiff%20CF10%203EA" target="_blank" rel="noopener">Get directions</a>
+          <a class="stay-secondary" href="https://www.airbnb.co.uk/rooms/14280162" target="_blank" rel="noopener">View Airbnb listing</a>
+        </div>
+        <section class="stay-section" aria-labelledby="amenitiesTitle">
+          <h3 id="amenitiesTitle">Main amenities</h3>
+          <ul class="amenity-list">
+            <li>Kitchen</li>
+            <li>Wi-Fi</li>
+            <li>Free parking</li>
+            <li>TV</li>
+            <li>Washing machine</li>
+            <li>Shared garden</li>
+            <li>Hairdryer</li>
+            <li>Games room</li>
+          </ul>
+        </section>
+        <section class="stay-section" aria-labelledby="arrivalTitle">
+          <h3 id="arrivalTitle">Important arrival notes</h3>
+          <p class="arrival-note">The cottage can be difficult to find and may not appear correctly in every sat-nav. Fiona recommends arriving in daylight and parking on the ambulance-yard side. The property has low doors, narrow stairs and small bathrooms; all toilets are upstairs, so it is not convenient for wheelchair users.</p>
+        </section>
+        <section class="stay-section" aria-labelledby="groceryTitle">
+          <h3 id="groceryTitle">Nearby groceries</h3>
+          <div class="store-grid">
+            <article class="store-card">
+              <h4>Lidl, Maindy Road</h4>
+              <span class="store-type">Full supermarket · about 0.8 mi</span>
+              <p>Maindy Road, Cathays, Cardiff CF24 4HQ<br>Customer care: <a href="tel:08009777766">0800 977 7766</a></p>
+              <a href="https://www.google.com/maps/dir/?api=1&amp;origin=1%20Blackweir%20Cottage%20House%2C%20Cardiff%20CF10%203EA&amp;destination=Lidl%2C%20Maindy%20Road%2C%20Cardiff%20CF24%204HQ" target="_blank" rel="noopener">Directions</a>
+              <a href="https://www.lidl.co.uk/s/en-GB/store-finder/cardiff/maindy-road-cathays/" target="_blank" rel="noopener">Store page</a>
+            </article>
+            <article class="store-card">
+              <h4>Sainsbury's Local, Woodville Road</h4>
+              <span class="store-type">Local convenience store</span>
+              <p>123-127 Woodville Road, Cardiff CF24 4DZ<br>Phone: <a href="tel:03300137569">0330 013 7569</a></p>
+              <a href="https://www.google.com/maps/dir/?api=1&amp;origin=1%20Blackweir%20Cottage%20House%2C%20Cardiff%20CF10%203EA&amp;destination=Sainsbury%27s%20Local%2C%20123-127%20Woodville%20Road%2C%20Cardiff" target="_blank" rel="noopener">Directions</a>
+              <a href="https://stores.sainsburys.co.uk/4884/cardiff-woodville-road-local" target="_blank" rel="noopener">Store page</a>
+            </article>
+            <article class="store-card">
+              <h4>Sainsbury's, Queen Street</h4>
+              <span class="store-type">City-centre supermarket</span>
+              <p>133-139 Queen Street, Cardiff CF10 2BJ<br>Phone: <a href="tel:02920343748">029 2034 3748</a></p>
+              <a href="https://www.google.com/maps/dir/?api=1&amp;origin=1%20Blackweir%20Cottage%20House%2C%20Cardiff%20CF10%203EA&amp;destination=Sainsbury%27s%2C%20133-139%20Queen%20Street%2C%20Cardiff%20CF10%202BJ" target="_blank" rel="noopener">Directions</a>
+              <a href="https://stores.sainsburys.co.uk/2039/cardiff" target="_blank" rel="noopener">Store page</a>
+            </article>
+            <article class="store-card">
+              <h4>Tesco Extra, Excelsior Estate</h4>
+              <span class="store-type">Large superstore</span>
+              <p>Excelsior Road, Cardiff CF14 3AT<br>Phone: <a href="tel:03452666581">0345 266 6581</a></p>
+              <a href="https://www.google.com/maps/dir/?api=1&amp;origin=1%20Blackweir%20Cottage%20House%2C%20Cardiff%20CF10%203EA&amp;destination=Tesco%20Extra%2C%20Excelsior%20Estate%2C%20Cardiff%20CF14%203AT" target="_blank" rel="noopener">Directions</a>
+              <a href="https://www.tesco.com/store-locator/cardiff/excelsior-estate" target="_blank" rel="noopener">Store page</a>
+            </article>
+          </div>
+        </section>
+        <section class="stay-section" aria-labelledby="deliveryTitle">
+          <h3 id="deliveryTitle">Order food or groceries</h3>
+          <div class="order-links">
+            <a href="https://deliveroo.co.uk/restaurants/cardiff/cardiff-central" target="_blank" rel="noopener">Deliveroo</a>
+            <a href="https://www.ubereats.com/gb/city/cardiff-wls" target="_blank" rel="noopener">Uber Eats</a>
+            <a href="https://www.just-eat.co.uk/area/cf10-cardiff" target="_blank" rel="noopener">Just Eat</a>
+            <a href="https://www.tesco.com/groceries/en-GB/" target="_blank" rel="noopener">Tesco groceries</a>
+            <a href="https://www.sainsburys.co.uk/gol-ui/groceries" target="_blank" rel="noopener">Sainsbury's groceries</a>
+          </div>
+        </section>
+        <p class="stay-note">Listing details checked on Airbnb on 30 July 2026. Use Airbnb messages for the latest access instructions and host contact details.</p>
+      </section>
+    </div>
+  </main>
+
+  <main class="checklist-view" id="checklistView" role="tabpanel" aria-labelledby="checklistTab" hidden>
+    <div class="checklist-inner">
+      <header class="checklist-intro">
+        <h2>Trip checklist</h2>
+        <p>Add grocery shopping, packing reminders, bookings and activities. Changes sync across your connected devices.</p>
+        <span class="checklist-sync-status" id="checklistSyncStatus" aria-live="polite">Connecting shared list...</span>
+      </header>
+      <form class="checklist-form" id="checklistForm">
+        <input id="checklistText" type="text" maxlength="120" placeholder="Add an item" aria-label="Checklist item" required>
+        <select id="checklistCategory" aria-label="Item category">
+          <option>Grocery</option>
+          <option>Packing</option>
+          <option>Booking</option>
+          <option>Activity</option>
+          <option>Other</option>
+        </select>
+        <button class="checklist-add" type="submit"><i data-lucide="plus" aria-hidden="true"></i>Add</button>
+      </form>
+      <div class="checklist-toolbar">
+        <span id="checklistSummary" aria-live="polite"></span>
+        <button class="clear-completed" id="clearCompleted" type="button"><i data-lucide="check-check" aria-hidden="true"></i>Clear completed</button>
+      </div>
+      <ul class="trip-list" id="tripList"></ul>
+      <p class="checklist-empty" id="checklistEmpty" hidden>Your list is empty.</p>
+    </div>
+  </main>
+
+  <main class="parking-view" id="parkingView" role="tabpanel" aria-labelledby="parkingTab" hidden>
+    <div class="parking-inner">
+      <header class="parking-intro">
+        <h2>Parking</h2>
+        <p>Save where you parked, open the pin in Google Maps, and get walking directions back.</p>
+      </header>
+      <section class="parking-tool" aria-labelledby="parkingTitle">
+        <header class="parking-heading">
+          <i data-lucide="map-pin" aria-hidden="true"></i>
+          <h3 id="parkingTitle">Save my parking</h3>
+        </header>
+        <p class="parking-status" id="parkingStatus" aria-live="polite">No parking location saved.</p>
+        <div class="parking-actions">
+          <button class="save-parking" id="saveParking" type="button"><i data-lucide="locate-fixed" aria-hidden="true"></i>Save current location</button>
+          <a id="openParkingPin" href="#" target="_blank" rel="noopener" hidden><i data-lucide="map" aria-hidden="true"></i>Open saved pin</a>
+          <a id="parkingDirections" href="#" target="_blank" rel="noopener" hidden><i data-lucide="navigation" aria-hidden="true"></i>Directions back</a>
+          <button class="clear-parking" id="clearParking" type="button" aria-label="Clear saved parking" title="Clear saved parking" hidden><i data-lucide="trash-2" aria-hidden="true"></i></button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <main class="instagram-view" id="instagramView" role="tabpanel" aria-labelledby="instagramTab" hidden>
+    <div class="instagram-inner">
+      <header class="instagram-intro">
+        <h2>Instagram inspiration</h2>
+        <p>Browse recent public posts for some of the most photogenic stops in the trip finder. Instagram may ask you to sign in.</p>
+      </header>
+      <section class="instagram-grid" aria-label="Instagram destination links">
+        <article class="instagram-card">
+          <img src="assets/featured/elan_valley_dams_crop.jpg" alt="Elan Valley dams and reservoir landscape" loading="lazy">
+          <div class="instagram-card-content">
+            <h3>Elan Valley</h3><p>#elanvalley</p>
+            <a class="instagram-link" href="https://www.instagram.com/explore/tags/elanvalley/" target="_blank" rel="noopener"><i data-lucide="instagram" aria-hidden="true"></i>View posts</a>
+          </div>
+        </article>
+        <article class="instagram-card">
+          <img src="assets/places/bannau-brycheiniog-national-park.jpg" alt="Mountain scenery in Bannau Brycheiniog National Park" loading="lazy">
+          <div class="instagram-card-content">
+            <h3>Bannau Brycheiniog</h3><p>#bannaubrycheiniog</p>
+            <a class="instagram-link" href="https://www.instagram.com/explore/tags/bannaubrycheiniog/" target="_blank" rel="noopener"><i data-lucide="instagram" aria-hidden="true"></i>View posts</a>
+          </div>
+        </article>
+        <article class="instagram-card">
+          <img src="assets/featured/rhossili_bay_and_worm_s_head_crop.jpg" alt="Rhossili Bay and Worm's Head coastline" loading="lazy">
+          <div class="instagram-card-content">
+            <h3>Rhossili Bay</h3><p>#rhossilibay</p>
+            <a class="instagram-link" href="https://www.instagram.com/explore/tags/rhossilibay/" target="_blank" rel="noopener"><i data-lucide="instagram" aria-hidden="true"></i>View posts</a>
+          </div>
+        </article>
+        <article class="instagram-card">
+          <img src="assets/featured/pen_y_fan_and_the_central_beacons_crop.jpg" alt="Pen y Fan and the central Bannau Brycheiniog mountains" loading="lazy">
+          <div class="instagram-card-content">
+            <h3>Pen y Fan</h3><p>#penyfan</p>
+            <a class="instagram-link" href="https://www.instagram.com/explore/tags/penyfan/" target="_blank" rel="noopener"><i data-lucide="instagram" aria-hidden="true"></i>View posts</a>
+          </div>
+        </article>
+        <article class="instagram-card">
+          <img src="assets/places/four-waterfalls-trail.jpg" alt="Waterfall on the Four Waterfalls Trail" loading="lazy">
+          <div class="instagram-card-content">
+            <h3>Welsh waterfalls</h3><p>#waleswaterfalls</p>
+            <a class="instagram-link" href="https://www.instagram.com/explore/tags/waleswaterfalls/" target="_blank" rel="noopener"><i data-lucide="instagram" aria-hidden="true"></i>View posts</a>
+          </div>
+        </article>
+        <article class="instagram-card">
+          <img src="assets/places/cardiff-castle.jpg" alt="Cardiff Castle in the city centre" loading="lazy">
+          <div class="instagram-card-content">
+            <h3>Cardiff</h3><p>#cardiff</p>
+            <a class="instagram-link" href="https://www.instagram.com/explore/tags/cardiff/" target="_blank" rel="noopener"><i data-lucide="instagram" aria-hidden="true"></i>View posts</a>
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <main class="recommended-view" id="recommendedView" role="tabpanel" aria-labelledby="recommendedTab" hidden>
+    <div class="recommended-inner">
+      <header class="recommended-intro">
+        <div>
+          <h2>Recommended four-day journey</h2>
+          <p>A practical route from the Cardiff stay, grouped by geography to reduce backtracking. Driving times are approximate; check live weather, tides, road conditions, opening times and bookings before departure.</p>
+        </div>
+        <a class="pdf-link" href="assets/documents/south_mid_wales_scenic_road_trip.pdf" target="_blank">Open original PDF</a>
+      </header>
+
+      <div class="day-grid">
+        <article class="day-plan">
+          <header class="day-heading">
+            <div class="day-number">DAY 1</div>
+            <div>
+              <h3>Central Bannau Brycheiniog</h3>
+              <p>Pen y Fan · Craig Cerrig-gleisiad · Brecon Canal Basin</p>
+            </div>
+          </header>
+          <ol class="journey-list">
+            <li><span class="journey-time">07:15</span><span>Leave CF10 3EA for Pont ar Daf. Allow approximately 1 hr 05-20.</span></li>
+            <li><span class="journey-time">08:30-12:15</span><span>Pen y Fan summit walk. Allow 3-4 hours including weather pauses and photos.</span></li>
+            <li><span class="journey-time">12:15-13:00</span><span>Drive via the A470 to Craig Cerrig-gleisiad; take a picnic or quick cafe stop.</span></li>
+            <li><span class="journey-time">13:00-14:00</span><span>Roadside viewpoint or short reserve walk at Craig Cerrig-gleisiad.</span></li>
+            <li><span class="journey-time">14:00-14:25</span><span>Drive to Brecon Canal Basin.</span></li>
+            <li><span class="journey-time">14:30-17:30</span><span>Canal-basin walk, cafes and optional Dragonfly Cruise only when the current timetable fits.</span></li>
+            <li><span class="journey-time">Return</span><span>Leave Brecon around 17:30-18:00; arrive home approximately 18:45-19:30.</span></li>
+            <li><span class="journey-time">Total</span><span>About 100-110 miles and 3-3.5 hours driving, plus walks and stops.</span></li>
+          </ol>
+          <p class="day-warning">If cloud, wind or rain makes the summit unsuitable, replace Pen y Fan with a lower viewpoint and spend longer in Brecon.</p>
+          <div class="day-actions">
+            <a href="https://www.google.com/maps/dir/?api=1&amp;origin=CF10%203EA&amp;destination=CF10%203EA&amp;waypoints=Pont%20ar%20Daf%20Car%20Park%7CCraig%20Cerrig-gleisiad%7CBrecon%20Canal%20Basin" target="_blank" rel="noopener">Open day route</a>
+            <a class="route-secondary" href="https://bannaubrycheiniog.org/businesses/dragonfly-cruises/" target="_blank" rel="noopener">Cruise timetable</a>
+          </div>
+        </article>
+
+        <article class="day-plan">
+          <header class="day-heading">
+            <div class="day-number">DAY 2</div>
+            <div>
+              <h3>Western Bannau Brycheiniog</h3>
+              <p>Llyn y Fan Fach · Carreg Cennen Castle</p>
+            </div>
+          </header>
+          <ol class="journey-list">
+            <li><span class="journey-time">08:00</span><span>Leave CF10 3EA for Llyn y Fan Fach. Allow 1 hr 40-2 hr; the final approach is narrow and slow.</span></li>
+            <li><span class="journey-time">10:00-13:00</span><span>Short lake walk only: walk to the lake, enjoy the escarpment view and return the same way.</span></li>
+            <li><span class="journey-time">Lunch</span><span>Use a packed lunch or stop in Llandovery or Llandeilo. Do not rely on facilities at the lake car park.</span></li>
+            <li><span class="journey-time">14:15-16:15</span><span>Visit Carreg Cennen Castle, allowing time for the uphill approach and viewpoints.</span></li>
+            <li><span class="journey-time">Return</span><span>Leave by 16:30-17:00; arrive home approximately 18:15-19:00.</span></li>
+            <li><span class="journey-time">Total</span><span>About 135-150 miles and 4-4.75 hours driving, plus walking.</span></li>
+          </ol>
+          <p class="day-warning">Do not add the full Llyn y Fan Fach ridge circuit on the same day as the castle. Roads are narrow and parking is limited.</p>
+          <div class="day-actions">
+            <a href="https://www.google.com/maps/dir/?api=1&amp;origin=CF10%203EA&amp;destination=CF10%203EA&amp;waypoints=Llyn%20y%20Fan%20Fach%20Car%20Park%7CCarreg%20Cennen%20Castle" target="_blank" rel="noopener">Open day route</a>
+          </div>
+        </article>
+
+        <article class="day-plan">
+          <header class="day-heading">
+            <div class="day-number">DAY 3</div>
+            <div>
+              <h3>Gower Peninsula</h3>
+              <p>Broughton Bay · Blue Pool · Rhossili Bay · Worm's Head</p>
+            </div>
+          </header>
+          <ol class="journey-list">
+            <li><span class="journey-time">08:00-09:00</span><span>Leave CF10 3EA according to the tide window. Allow 1 hr 40-2 hr 15 to Gower.</span></li>
+            <li><span class="journey-time">Low tide AM</span><span>Visit Broughton Bay and Blue Pool first, then lunch, Rhossili Bay and the Worm's Head clifftop viewpoint.</span></li>
+            <li><span class="journey-time">Low tide PM</span><span>Start at Rhossili viewpoint and beach, then visit Broughton and Blue Pool only with a safe return window.</span></li>
+            <li><span class="journey-time">Worm's Head</span><span>The viewpoint is straightforward. Crossing the causeway is a separate tidal walk.</span></li>
+            <li><span class="journey-time">Return</span><span>Leave Gower around 17:30-19:00; arrive home approximately 19:30-21:15.</span></li>
+            <li><span class="journey-time">Total</span><span>About 145-160 miles and 4-5 hours driving, plus beach and cliff walks.</span></li>
+          </ol>
+          <p class="day-warning">Tides decide this day. Blue Pool and Worm's Head have cut-off risk; check tide times, sea state and local advice before going below cliffs.</p>
+          <div class="day-actions">
+            <a href="https://www.google.com/maps/dir/?api=1&amp;origin=CF10%203EA&amp;destination=CF10%203EA&amp;waypoints=Broughton%20Bay%2C%20Gower%7CNational%20Trust%20Rhossili%20Car%20Park" target="_blank" rel="noopener">Low tide morning route</a>
+            <a class="route-secondary" href="https://www.google.com/maps/dir/?api=1&amp;origin=CF10%203EA&amp;destination=CF10%203EA&amp;waypoints=National%20Trust%20Rhossili%20Car%20Park%7CBroughton%20Bay%2C%20Gower" target="_blank" rel="noopener">Low tide afternoon route</a>
+          </div>
+        </article>
+
+        <article class="day-plan">
+          <header class="day-heading">
+            <div class="day-number">DAY 4</div>
+            <div>
+              <h3>Elan Valley</h3>
+              <p>Visitor Centre · Caban Coch · Garreg Ddu · Pen y Garreg · Craig Goch</p>
+            </div>
+          </header>
+          <ol class="journey-list">
+            <li><span class="journey-time">07:45</span><span>Leave CF10 3EA for Elan Valley Visitor Centre. Allow approximately 1 hr 55-2 hr 25.</span></li>
+            <li><span class="journey-time">10:15-11:00</span><span>Visitor Centre, toilets, cafe, maps and first views of Caban Coch.</span></li>
+            <li><span class="journey-time">11:00-15:30</span><span>Drive the dam sequence with short signed viewpoints and photo stops.</span></li>
+            <li><span class="journey-time">Optional</span><span>Add Claerwen Dam only in good weather and with enough daylight for the remote road.</span></li>
+            <li><span class="journey-time">Return</span><span>Leave Elan around 16:30-17:30; arrive home approximately 19:00-20:15.</span></li>
+            <li><span class="journey-time">Total</span><span>About 160-180 miles and 4.5-5.5 hours driving; more with Claerwen.</span></li>
+          </ol>
+          <p class="day-warning">Expect remote roads, patchy mobile signal and exposed weather. Arrange fuel or charging before entering the valley. Keep Caerphilly Castle as a separate visit.</p>
+          <div class="day-actions">
+            <a href="https://www.google.com/maps/dir/?api=1&amp;origin=CF10%203EA&amp;destination=CF10%203EA&amp;waypoints=Elan%20Valley%20Visitor%20Centre%7CCaban%20Coch%20Dam%7CGarreg%20Ddu%20Dam%7CPen%20y%20Garreg%20Dam%7CCraig%20Goch%20Dam" target="_blank" rel="noopener">Open day route</a>
+            <a class="route-secondary" href="https://www.google.com/maps/dir/?api=1&amp;origin=CF10%203EA&amp;destination=Caerphilly%20Castle" target="_blank" rel="noopener">Separate Caerphilly visit</a>
+          </div>
+        </article>
+      </div>
+
+      <section class="alternatives" aria-labelledby="alternativesTitle">
+        <h3 id="alternativesTitle">Three-day alternatives</h3>
+        <div class="alternative-grid">
+          <article class="alternative">
+            <h4>Option A · Natural scenery priority</h4>
+            <ol>
+              <li>Central Bannau: Pen y Fan, Craig Cerrig-gleisiad and Brecon Canal Basin.</li>
+              <li>Carreg Cennen Castle and the short Llyn y Fan Fach lake walk.</li>
+              <li>Gower Peninsula using the tide-led plan.</li>
+            </ol>
+          </article>
+          <article class="alternative">
+            <h4>Option B · Engineering and landscape priority</h4>
+            <ol>
+              <li>Elan Valley dams as a full day.</li>
+              <li>Central Bannau and Brecon Canal; Pen y Fan only if weather fits.</li>
+              <li>Gower Peninsula using the tide-led plan.</li>
+            </ol>
+          </article>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/lucide@1.28.0/dist/umd/lucide.min.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script>
+    const baseOrigin = "CF10 3EA";
+    const colours = {
+      "Dam / engineering excellence": "#3f78ba",
+      "Waterfall": "#328c93",
+      "Beach": "#168a9c",
+      "Wildlife": "#5d8b4d",
+      "Nature & parks": "#3f8258",
+      "Cityscape": "#806f82",
+      "Water & adventure activities": "#a87b27",
+      "Mountain / valley": "#34714f",
+      "Castle": "#a75c53"
+    };
+
+    const filters = Object.keys(colours);
+
+    const normalizePlaceName = value => value
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+    const recommendedPlaceNames = new Set([
+      "Elan Valley dams",
+      "Bannau Brycheiniog National Park",
+      "Brecon Canal and Dragonfly Cruises",
+      "Pen y Fan / Pont ar Daf",
+      "Llyn y Fan Fach",
+      "Rhossili Bay and Worm's Head",
+      "Caerphilly Castle"
+    ].map(normalizePlaceName));
+
+    function isRecommendedPlace(place) {
+      return recommendedPlaceNames.has(normalizePlaceName(place.name));
+    }
+
+    const googleRatings = new Map([
+      ["Elan Valley dams", 4.8, 369],
+      ["Bannau Brycheiniog National Park", 4.5, 1794],
+      ["Brecon Canal and Dragonfly Cruises", 4.6, 1414],
+      ["Zip World Tower Coaster", 4.6, 2254],
+      ["Cardiff International White Water", 4.8, 625],
+      ["Cardiff Bay boat tour", 4.6, 44],
+      ["Four Waterfalls Trail", 4.6, 1015],
+      ["Henrhyd Falls", 4.7, 4739],
+      ["Pen y Fan / Pont ar Daf", 4.9, 1930],
+      ["Llyn y Fan Fach", 4.6, 284],
+      ["Rhossili Bay and Worm's Head", 4.9, 452],
+      ["Barry Island", 4.6, 1611],
+      ["Dunraven Bay, Southerndown", 4.8, 1935],
+      ["Newport Wetlands", 4.6, 1476],
+      ["Cardiff Bay and Barrage", 4.7, 330],
+      ["Cardiff Castle", 4.6, 22814],
+      ["Caerphilly Castle", 4.7, 8572],
+      ["Castell Coch", 4.6, 4522],
+      ["St Fagans, Cardiff", 4.7, 12749],
+      ["National Museum Cardiff", 4.6, 10609],
+      ["Bute Park, Cardiff", 4.7, 7213],
+      ["Roath Park and Lake, Cardiff", 4.8, 217],
+      ["Forest Farm and Glamorganshire Canal", 4.7, 971],
+      ["National Waterfront Museum, Swansea", 4.4, 2589],
+      ["LC Swansea", 4.3, 2016],
+      ["Swansea Bay and Mumbles promenade", 4.4, 7667],
+      ["Clyne Gardens, Swansea", 4.8, 1830],
+      ["Penllergare Valley Woods, Swansea", 4.7, 2547],
+      ["Oystermouth Castle, Swansea", 4.5, 1213],
+      ["Swansea Castle", 4.0, 1030],
+      ["Glynn Vivian Art Gallery, Swansea", 4.5, 488],
+      ["Newport Transporter Bridge", 4.6, 689],
+      ["Tredegar House, Newport", 4.6, 2210],
+      ["Newport Market", 4.5, 1420],
+      ["Belle Vue Park, Newport", 4.6, 2088],
+      ["Fourteen Locks Canal Centre, Newport", 4.4, 1889],
+      ["Allt-yr-yn Nature Reserve, Newport", 4.5, 262],
+      ["Newport Castle", 3.5, 30],
+      ["Newport Cathedral", 4.7, 129]
+    ].map(([name, score, reviews]) => [normalizePlaceName(name), { score, reviews }]));
+
+    function googleRatingFor(place) {
+      return googleRatings.get(normalizePlaceName(place.name));
+    }
+
+    const accessibilityByPlace = new Map([
+      ["Elan Valley dams", "Easy", "Visitor centre and roadside dam viewpoints; optional walks vary."],
+      ["Bannau Brycheiniog National Park", "Moderate", "Visitor centre is easier; mountain and valley sites vary widely."],
+      ["Brecon Canal and Dragonfly Cruises", "Easy", "Mostly level canal-basin paths; confirm boat boarding access."],
+      ["Zip World Tower Coaster", "Moderate", "Step-free venue areas, but rides have physical and size restrictions."],
+      ["Cardiff International White Water", "Moderate", "Accessible venue; activities have individual participation requirements."],
+      ["Cardiff Bay boat tour", "Moderate", "Level waterfront; boarding conditions depend on boat and water level."],
+      ["Four Waterfalls Trail", "Challenging", "Long, steep and often slippery woodland paths with many steps."],
+      ["Henrhyd Falls", "Challenging", "Short but steep woodland descent that can be muddy and slippery."],
+      ["Pen y Fan / Pont ar Daf", "Challenging", "Exposed mountain ascent on steep, uneven paths."],
+      ["Llyn y Fan Fach", "Challenging", "Remote rough track, uneven ground and limited facilities."],
+      ["Rhossili Bay and Worm's Head", "Moderate", "Viewpoint is easier; beach access involves a long steep descent."],
+      ["Barry Island", "Easy", "Level promenade with nearby parking and facilities."],
+      ["Dunraven Bay, Southerndown", "Moderate", "Sloping access with uneven beach and coastal terrain."],
+      ["Newport Wetlands", "Easy", "Mostly level surfaced trails and an accessible visitor centre."],
+      ["Cardiff Bay and Barrage", "Easy", "Wide, mostly level waterfront and barrage routes."],
+      ["Cardiff Castle", "Moderate", "Grounds are easier; towers and historic interiors include stairs."],
+      ["Caerphilly Castle", "Moderate", "Uneven historic surfaces and stairs; accessible routes cover key areas."],
+      ["Castell Coch", "Moderate", "Steep site with stairs and restricted access to upper rooms."],
+      ["St Fagans, Cardiff", "Moderate", "Large outdoor site with slopes, varied surfaces and substantial walking."],
+      ["National Museum Cardiff", "Easy", "Step-free museum entrance, lifts and indoor facilities."],
+      ["Bute Park, Cardiff", "Easy", "Broad surfaced paths with mainly level riverside routes."],
+      ["Roath Park and Lake, Cardiff", "Easy", "Mostly level surfaced paths around the lake and gardens."],
+      ["Forest Farm and Glamorganshire Canal", "Easy", "Generally flat canal-side paths; some sections become muddy."],
+      ["National Waterfront Museum, Swansea", "Easy", "Step-free entrance, lifts and accessible indoor galleries."],
+      ["LC Swansea", "Easy", "Modern leisure venue with step-free access; activity requirements vary."],
+      ["Swansea Bay and Mumbles promenade", "Easy", "Long, level seafront promenade with frequent facilities."],
+      ["Clyne Gardens, Swansea", "Moderate", "Hilly garden with slopes, steps and woodland paths."],
+      ["Penllergare Valley Woods, Swansea", "Moderate", "Woodland slopes and mixed surfaces; some routes are steep."],
+      ["Oystermouth Castle, Swansea", "Moderate", "Uphill approach, uneven surfaces and stairs inside the castle."],
+      ["Swansea Castle", "Easy", "Central exterior viewing on paved city-centre routes."],
+      ["Glynn Vivian Art Gallery, Swansea", "Easy", "Step-free gallery access with lifts and indoor facilities."],
+      ["Newport Transporter Bridge", "Easy", "Level exterior and visitor-centre approach; check current works."],
+      ["Tredegar House, Newport", "Moderate", "Accessible core areas with longer parkland routes and varied surfaces."],
+      ["Newport Market", "Easy", "Central indoor venue with level access and nearby facilities."],
+      ["Belle Vue Park, Newport", "Moderate", "Surfaced paths, but the historic park includes notable slopes."],
+      ["Fourteen Locks Canal Centre, Newport", "Moderate", "Towpath slopes and uneven sections alongside the lock flight."],
+      ["Allt-yr-yn Nature Reserve, Newport", "Moderate", "Informal woodland paths with slopes and muddy sections."],
+      ["Newport Castle", "Easy", "Exterior-only view from paved riverside and city-centre routes."],
+      ["Newport Cathedral", "Moderate", "Hilltop approach and historic surfaces; confirm step-free entrance."],
+    ].map(([name, level, note]) => [normalizePlaceName(name), { level, note }]));
+
+    const weatherCoordinates = new Map([
+      ["Elan Valley dams", 52.2650, -3.5720],
+      ["Bannau Brycheiniog National Park", 51.9250, -3.4886],
+      ["Brecon Canal and Dragonfly Cruises", 51.9442, -3.3880],
+      ["Zip World Tower Coaster", 51.7274, -3.5559],
+      ["Cardiff International White Water", 51.4487, -3.1818],
+      ["Cardiff Bay boat tour", 51.4630, -3.1660],
+      ["Four Waterfalls Trail", 51.8000, -3.5554],
+      ["Henrhyd Falls", 51.7940, -3.6641],
+      ["Pen y Fan / Pont ar Daf", 51.8833, -3.4368],
+      ["Llyn y Fan Fach", 51.8999, -3.7457],
+      ["Rhossili Bay and Worm's Head", 51.5680, -4.2950],
+      ["Barry Island", 51.3920, -3.2730],
+      ["Dunraven Bay, Southerndown", 51.4450, -3.6040],
+      ["Newport Wetlands", 51.5442, -2.9614],
+      ["Cardiff Bay and Barrage", 51.4466, -3.1655],
+      ["Cardiff Castle", 51.4822, -3.1812],
+      ["Caerphilly Castle", 51.5761, -3.2202],
+      ["Castell Coch", 51.5358, -3.2548],
+      ["St Fagans, Cardiff", 51.4872, -3.2724],
+      ["National Museum Cardiff", 51.4857, -3.1768],
+      ["Bute Park, Cardiff", 51.4846, -3.1853],
+      ["Roath Park and Lake, Cardiff", 51.5080, -3.1720],
+      ["Forest Farm and Glamorganshire Canal", 51.5178, -3.2460],
+      ["National Waterfront Museum, Swansea", 51.6166, -3.9392],
+      ["LC Swansea", 51.6169, -3.9406],
+      ["Swansea Bay and Mumbles promenade", 51.5694, -3.9755],
+      ["Clyne Gardens, Swansea", 51.5959, -4.0030],
+      ["Penllergare Valley Woods, Swansea", 51.6745, -3.9920],
+      ["Oystermouth Castle, Swansea", 51.5768, -4.0025],
+      ["Swansea Castle", 51.6204, -3.9411],
+      ["Glynn Vivian Art Gallery, Swansea", 51.6236, -3.9445],
+      ["Newport Transporter Bridge", 51.5711, -2.9872],
+      ["Tredegar House, Newport", 51.5618, -3.0279],
+      ["Newport Market", 51.5888, -2.9963],
+      ["Belle Vue Park, Newport", 51.5792, -3.0016],
+      ["Fourteen Locks Canal Centre, Newport", 51.5918, -3.0420],
+      ["Allt-yr-yn Nature Reserve, Newport", 51.5925, -3.0176],
+      ["Newport Castle", 51.5908, -2.9950],
+      ["Newport Cathedral", 51.5830, -2.9985],
+    ].map(([name, latitude, longitude]) => [normalizePlaceName(name), { latitude, longitude }]));
+
+    function accessibilityFor(place) {
+      return accessibilityByPlace.get(normalizePlaceName(place.name));
+    }
+
+    const scenicScores = new Map([
+      ["Elan Valley dams", 100],
+      ["Rhossili Bay and Worm's Head", 98],
+      ["Bannau Brycheiniog National Park", 97],
+      ["Pen y Fan / Pont ar Daf", 96],
+      ["Llyn y Fan Fach", 95],
+      ["Four Waterfalls Trail", 94],
+      ["Dunraven Bay, Southerndown", 92],
+      ["Henrhyd Falls", 91],
+      ["Brecon Canal and Dragonfly Cruises", 89],
+      ["Penllergare Valley Woods, Swansea", 87],
+      ["Clyne Gardens, Swansea", 85],
+      ["Newport Wetlands", 84],
+      ["Swansea Bay and Mumbles promenade", 83],
+      ["Cardiff Bay and Barrage", 81],
+      ["Bute Park, Cardiff", 80]
+    ].map(([name, score]) => [normalizePlaceName(name), score]));
+
+    function scenicScoreFor(place) {
+      const curatedScore = scenicScores.get(normalizePlaceName(place.name));
+      if (curatedScore) return curatedScore;
+      const categoryScores = {
+        "Mountain / valley": 78,
+        Waterfall: 76,
+        Beach: 74,
+        "Nature & parks": 70,
+        Wildlife: 68,
+        Castle: 64,
+        "Dam / engineering excellence": 62,
+        Cityscape: 50,
+        "Water & adventure activities": 48
+      };
+      return Math.max(...place.cats.map(category => categoryScores[category] || 0));
+    }
+
+    const places = [
+      {
+        name: "Elan Valley dams",
+        cats: ["Dam / engineering excellence", "Wildlife"],
+        distance: 78,
+        driveMinutes: 135,
+        direction: "North",
+        image: "assets/featured/elan_valley_dams_crop.jpg",
+        official: "https://elanvalley.org.uk/",
+        destination: "Elan Valley Visitor Centre, LD6 5HP",
+        best: "Spring for overflowing dams; autumn for colour; clear winter days for dramatic engineering views.",
+        summary: "A full-day landscape of reservoirs, Victorian dams, remote roads and car-accessible viewpoints.",
+        nearby: "Rhayader, Caban Coch Dam, Garreg Ddu, Craig Goch, optional Claerwen Dam."
+      },
+      {
+        name: "Bannau Brycheiniog National Park",
+        cats: ["Nature & parks", "Mountain / valley", "Wildlife"],
+        distance: 37,
+        driveMinutes: 70,
+        direction: "North",
+        image: "assets/places/bannau-brycheiniog-national-park.jpg",
+        official: "https://bannau.wales/",
+        destination: "Bannau Brycheiniog National Park Visitor Centre",
+        best: "Clear, calm days for mountain views; lower valleys and visitor centres are better in poor weather.",
+        summary: "National park of broad mountain ridges, waterfalls, reservoirs, dark skies and scenic driving routes north of Cardiff.",
+        nearby: "Brecon, Pen y Fan, Talybont Reservoir, Waterfall Country and the Monmouthshire and Brecon Canal."
+      },
+      {
+        name: "Brecon Canal and Dragonfly Cruises",
+        cats: ["Water & adventure activities", "Nature & parks"],
+        distance: 44,
+        driveMinutes: 75,
+        direction: "North",
+        image: "assets/places/brecon-canal-and-dragonfly-cruises.jpg",
+        official: "https://bannaubrycheiniog.org/businesses/dragonfly-cruises/",
+        destination: "Brecon Canal Basin",
+        best: "Spring through early autumn; check cruise dates and book ahead for weekends and school holidays.",
+        summary: "Scenic canal-boat cruise from Brecon Canal Basin through the peaceful Usk Valley and national park landscape.",
+        nearby: "Brecon town centre, Brecon Cathedral, Theatr Brycheiniog, Pen y Fan and Talybont-on-Usk."
+      },
+      {
+        name: "Zip World Tower Coaster",
+        cats: ["Water & adventure activities", "Dam / engineering excellence"],
+        distance: 32,
+        driveMinutes: 55,
+        direction: "North-west",
+        image: "assets/places/zip-world-tower-coaster.jpg",
+        official: "https://www.zipworld.co.uk/adventures/tower-coaster",
+        destination: "Zip World Tower, Rhigos",
+        best: "Dry, calm days; book ahead for weekends and school holidays.",
+        summary: "Fast alpine-style coaster at the former Tower Colliery site, good for a high-energy add-on near the Valleys.",
+        nearby: "Penderyn Distillery, Waterfall Country and Brecon Beacons viewpoints."
+      },
+      {
+        name: "Cardiff International White Water",
+        cats: ["Water & adventure activities", "Cityscape"],
+        city: "Cardiff",
+        distance: 4,
+        driveMinutes: 15,
+        direction: "South-west",
+        image: "assets/places/cardiff-international-white-water.jpg",
+        official: "https://www.ciww.com/",
+        destination: "Cardiff International White Water",
+        best: "Any season; best as a half-day when you want activity without leaving Cardiff.",
+        summary: "White-water rafting, indoor surf and water activities close to Cardiff Bay.",
+        nearby: "Cardiff Bay Barrage, Mermaid Quay, Wales Millennium Centre, Penarth Marina."
+      },
+      {
+        name: "Cardiff Bay boat tour",
+        cats: ["Water & adventure activities", "Cityscape"],
+        city: "Cardiff",
+        distance: 2,
+        driveMinutes: 10,
+        direction: "South",
+        image: "assets/places/cardiff-bay-boat-tour.jpg",
+        official: "https://www.cardiffboat.com/",
+        destination: "Cardiff Bay, Mermaid Quay",
+        best: "Dry, calm afternoons from spring to early autumn; check the day's sailing schedule before travelling.",
+        summary: "Sightseeing boat trips around Cardiff Bay, with selected services connecting the waterfront and city centre.",
+        nearby: "Mermaid Quay, Wales Millennium Centre, Norwegian Church and Cardiff Bay Barrage."
+      },
+      {
+        name: "Four Waterfalls Trail",
+        cats: ["Waterfall", "Mountain / valley"],
+        distance: 43,
+        driveMinutes: 75,
+        direction: "North-west",
+        image: "assets/places/four-waterfalls-trail.jpg",
+        official: "https://bannau.wales/explore/waterfall-country/",
+        destination: "Cwm Porth Car Park, Ystradfellte",
+        best: "After rain for flow, but avoid icy or flood conditions; start early at weekends.",
+        summary: "Classic Waterfall Country walk with steep, slippery paths and several major falls.",
+        nearby: "Zip World Tower, Penderyn, Craig-y-nos Country Park, Pen y Fan if weather allows."
+      },
+      {
+        name: "Henrhyd Falls",
+        cats: ["Waterfall", "Wildlife"],
+        distance: 47,
+        driveMinutes: 80,
+        direction: "North-west",
+        image: "assets/places/henrhyd-falls.jpg",
+        official: "https://www.nationaltrust.org.uk/visit/wales/henrhyd-falls-and-nant-lech",
+        destination: "Henrhyd Falls",
+        best: "Spring/autumn or after rainfall; paths can be muddy and steep.",
+        summary: "South Wales' highest waterfall, reached by a short but steep woodland walk.",
+        nearby: "Craig-y-nos Country Park, Dan-yr-Ogof area, Waterfall Country."
+      },
+      {
+        name: "Pen y Fan / Pont ar Daf",
+        cats: ["Mountain / valley"],
+        distance: 38,
+        driveMinutes: 75,
+        direction: "North",
+        image: "assets/featured/pen_y_fan_and_the_central_beacons_crop.jpg",
+        official: "https://www.nationaltrust.org.uk/visit/wales/brecon-beacons/pen-y-fan-and-corn-du-circular-walk",
+        destination: "Pont ar Daf Car Park, CF48 2HY",
+        best: "Clear, calm weekdays; sunrise can be spectacular if you are properly equipped.",
+        summary: "The classic South Wales summit walk; exposed mountain weather and busy parking.",
+        nearby: "Craig Cerrig-gleisiad, Brecon Canal Basin, Storey Arms, Llwyn-on Reservoir."
+      },
+      {
+        name: "Llyn y Fan Fach",
+        cats: ["Mountain / valley", "Wildlife"],
+        distance: 61,
+        driveMinutes: 110,
+        direction: "North-west",
+        image: "assets/featured/llyn_y_fan_fach_crop.jpg",
+        official: "https://bannau.wales/",
+        destination: "Llyn y Fan Fach car park",
+        best: "Stable dry weather; avoid high winds and poor visibility.",
+        summary: "Remote lake and mountain escarpment reached by narrow roads and a moderate walk.",
+        nearby: "Carreg Cennen Castle, Llandovery, Usk Reservoir viewpoints."
+      },
+      {
+        name: "Rhossili Bay and Worm's Head",
+        cats: ["Beach", "Wildlife"],
+        distance: 67,
+        driveMinutes: 120,
+        direction: "West",
+        image: "assets/featured/rhossili_bay_and_worm_s_head_crop.jpg",
+        official: "https://www.nationaltrust.org.uk/visit/wales/rhosili-and-south-gower-coast",
+        destination: "National Trust Rhosili car park, SA3 1PR",
+        best: "Low tide for beach space; sunset for views. Worm's Head crossing needs tide checks.",
+        summary: "Gower's big coastal showpiece: cliff views, huge beach, seabirds and tidal walking.",
+        nearby: "Broughton Bay, Blue Pool, Port Eynon, Three Cliffs Bay."
+      },
+      {
+        name: "Barry Island",
+        cats: ["Beach"],
+        distance: 10,
+        driveMinutes: 30,
+        direction: "South-west",
+        image: "assets/places/barry-island.jpg",
+        official: "https://www.visitthevale.com/",
+        destination: "Barry Island Beach",
+        best: "Warm dry days outside peak midday; summer evenings for a classic seaside feel.",
+        summary: "Easy seaside trip from Cardiff with beach, promenade, arcades and food stops.",
+        nearby: "Porthkerry Country Park, Penarth Pier, Cardiff Bay on the way back."
+      },
+      {
+        name: "Dunraven Bay, Southerndown",
+        cats: ["Beach", "Wildlife"],
+        distance: 22,
+        driveMinutes: 45,
+        direction: "West",
+        image: "assets/places/dunraven-bay-southerndown.jpg",
+        official: "https://www.visitthevale.com/",
+        destination: "Dunraven Bay, Southerndown",
+        best: "Low to mid tide for beach access; golden hour for cliffs.",
+        summary: "Dramatic Heritage Coast beach with cliffs, rock pools and tidal considerations.",
+        nearby: "Ogmore-by-Sea, Nash Point, Cowbridge, St Donats."
+      },
+      {
+        name: "Newport Wetlands",
+        cats: ["Wildlife", "Nature & parks"],
+        city: "Newport",
+        distance: 16,
+        driveMinutes: 35,
+        direction: "East",
+        image: "assets/places/newport-wetlands.jpg",
+        official: "https://www.rspb.org.uk/days-out/reserves/newport-wetlands",
+        destination: "RSPB Newport Wetlands",
+        best: "Morning for birds; spring and autumn migrations are especially rewarding.",
+        summary: "Flat, low-walking reserve with reedbeds, estuary views and birdlife.",
+        nearby: "Transporter Bridge area, Tredegar House, Cardiff Bay Barrage."
+      },
+      {
+        name: "Cardiff Bay and Barrage",
+        cats: ["Cityscape", "Dam / engineering excellence", "Wildlife", "Nature & parks"],
+        city: "Cardiff",
+        distance: 2,
+        driveMinutes: 10,
+        direction: "South",
+        image: "assets/places/cardiff-bay-and-barrage.jpg",
+        official: "https://www.visitcardiff.com/",
+        destination: "Cardiff Bay Barrage",
+        best: "Late afternoon into evening for waterfront light and food.",
+        summary: "Waterfront cityscape with barrage engineering, bay walks, restaurants and cultural venues.",
+        nearby: "Wales Millennium Centre, Mermaid Quay, Norwegian Church, Cardiff International White Water."
+      },
+      {
+        name: "Cardiff Castle",
+        cats: ["Castle", "Cityscape"],
+        city: "Cardiff",
+        distance: 1,
+        driveMinutes: 8,
+        direction: "North-west",
+        image: "assets/places/cardiff-castle.jpg",
+        official: "https://www.cardiffcastle.com/",
+        destination: "Cardiff Castle",
+        best: "Morning for quieter interiors; easy rainy-day option.",
+        summary: "Central Cardiff's castle, keep, walls and ornate interiors, walkable from CF10 3EA.",
+        nearby: "Bute Park, National Museum Cardiff, arcades, Principality Stadium."
+      },
+      {
+        name: "Caerphilly Castle",
+        cats: ["Castle", "Dam / engineering excellence"],
+        distance: 9,
+        driveMinutes: 30,
+        direction: "North",
+        image: "assets/featured/caerphilly_castle_crop.jpg",
+        official: "https://cadw.gov.wales/visit/places-to-visit/caerphilly-castle",
+        destination: "Caerphilly Castle, CF83 1JD",
+        best: "Morning or late afternoon; pair with Castell Coch for a castle half-day.",
+        summary: "A huge moated fortress close to Cardiff with impressive water defences.",
+        nearby: "Castell Coch, Caerphilly town, Fforest Fawr."
+      },
+      {
+        name: "Castell Coch",
+        cats: ["Castle", "Wildlife"],
+        city: "Cardiff",
+        distance: 7,
+        driveMinutes: 25,
+        direction: "North-west",
+        image: "assets/places/castell-coch.jpg",
+        official: "https://cadw.gov.wales/visit/places-to-visit/castell-coch",
+        destination: "Castell Coch",
+        best: "Weekday mornings; autumn is good for surrounding woodland colour.",
+        summary: "Fairytale Gothic Revival castle above the Taff Gorge, quick from Cardiff.",
+        nearby: "Fforest Fawr sculpture trail, Taff Trail, Caerphilly Castle."
+      },
+      {
+        name: "St Fagans, Cardiff",
+        cats: ["Cityscape", "Wildlife", "Nature & parks", "Castle"],
+        city: "Cardiff",
+        distance: 5,
+        driveMinutes: 20,
+        direction: "West",
+        image: "assets/places/st-fagans-cardiff.jpg",
+        official: "https://museum.wales/stfagans/",
+        destination: "St Fagans National Museum of History",
+        best: "Dry half-day; allow extra time for outdoor buildings and gardens.",
+        summary: "Open-air Welsh history museum with historic buildings, gardens and easy walking.",
+        nearby: "Dyffryn Gardens, Cardiff Castle, Llandaff Cathedral."
+      },
+      {
+        name: "National Museum Cardiff",
+        cats: ["Cityscape"],
+        city: "Cardiff",
+        distance: 1,
+        driveMinutes: 8,
+        direction: "North",
+        image: "assets/places/national-museum-cardiff.jpg",
+        official: "https://museum.wales/cardiff/",
+        destination: "National Museum Cardiff",
+        best: "Rainy days, short city gaps, or after Cardiff Castle/Bute Park.",
+        summary: "Art, natural history and Welsh collections in Cardiff's civic centre.",
+        nearby: "Bute Park, Cardiff Castle, City Hall, arcades."
+      },
+      {
+        name: "Bute Park, Cardiff",
+        cats: ["Nature & parks", "Wildlife", "Cityscape"],
+        city: "Cardiff",
+        distance: 1,
+        driveMinutes: 8,
+        direction: "North-west",
+        image: "assets/places/bute-park-cardiff.jpg",
+        official: "https://bute-park.com/",
+        destination: "Bute Park, Cardiff",
+        best: "Morning for quiet riverside paths; spring blossom and autumn colour are especially good.",
+        summary: "Large riverside park beside Cardiff Castle with arboretum trees, gardens and easy city-centre walks.",
+        nearby: "Cardiff Castle, Sophia Gardens, Animal Wall, Taff Trail and Pontcanna."
+      },
+      {
+        name: "Roath Park and Lake, Cardiff",
+        cats: ["Nature & parks", "Wildlife"],
+        city: "Cardiff",
+        distance: 3,
+        driveMinutes: 15,
+        direction: "North-east",
+        image: "assets/places/roath-park-and-lake-cardiff.jpg",
+        official: "https://www.outdoorcardiff.com/parks/roath-park/",
+        destination: "Roath Park Lake, Cardiff",
+        best: "Early morning or late afternoon; spring and summer suit the gardens and lakeside circuit.",
+        summary: "Victorian park with a large lake, botanic garden, conservatory, play areas and water birds.",
+        nearby: "Roath Park Botanic Garden, Waterloo Gardens, Wellfield Road and Nant Fawr trail."
+      },
+      {
+        name: "Forest Farm and Glamorganshire Canal",
+        cats: ["Nature & parks", "Wildlife"],
+        city: "Cardiff",
+        distance: 6,
+        driveMinutes: 20,
+        direction: "North-west",
+        image: "assets/places/forest-farm-and-glamorganshire-canal.jpg",
+        official: "https://www.outdoorcardiff.com/parks/",
+        destination: "Forest Farm Country Park, Cardiff",
+        best: "Quiet mornings for birds and woodland wildlife; paths can be muddy after prolonged rain.",
+        summary: "Woodland, meadow and canal-side nature reserve in north Cardiff with flat walking routes and bird hides.",
+        nearby: "Glamorganshire Canal, Long Wood, Radyr Weir, Taff Trail and Castell Coch."
+      },
+      {
+        name: "National Waterfront Museum, Swansea",
+        cats: ["Cityscape", "Dam / engineering excellence"],
+        city: "Swansea",
+        distance: 42,
+        driveMinutes: 70,
+        direction: "West",
+        image: "assets/places/national-waterfront-museum-swansea.jpg",
+        official: "https://museum.wales/swansea/",
+        destination: "National Waterfront Museum, Swansea",
+        best: "Late morning on a mixed-weather day; continue around the marina in the afternoon.",
+        summary: "Free museum exploring Wales' industrial and transport history beside Swansea Marina's modern waterfront.",
+        nearby: "Swansea Marina, Dylan Thomas Centre, Swansea Museum, Swansea Arena and the city centre."
+      },
+      {
+        name: "LC Swansea",
+        cats: ["Cityscape", "Water & adventure activities"],
+        city: "Swansea",
+        distance: 42,
+        driveMinutes: 70,
+        direction: "West",
+        image: "assets/places/lc-swansea.jpg",
+        official: "https://www.freedom-leisure.co.uk/centres/lc-swansea/",
+        destination: "LC Swansea",
+        best: "Any season; reserve sessions ahead for weekends and school holidays.",
+        summary: "Central Swansea leisure complex with a waterpark, climbing and indoor activities close to the waterfront.",
+        nearby: "National Waterfront Museum, Swansea Marina, Swansea Arena and Wind Street."
+      },
+      {
+        name: "Swansea Bay and Mumbles promenade",
+        cats: ["Beach", "Nature & parks", "Cityscape"],
+        city: "Swansea",
+        distance: 47,
+        driveMinutes: 80,
+        direction: "West",
+        image: "assets/places/swansea-bay-and-mumbles-promenade.jpg",
+        official: "https://www.visitswanseabay.com/",
+        destination: "Mumbles Pier, Swansea",
+        best: "Dry afternoons and evenings; check the tide if you want a broad beach walk.",
+        summary: "Long urban bay, seafront path and Mumbles waterfront combining coastal scenery with cafes and city views.",
+        nearby: "Mumbles Pier, Oystermouth Castle, Bracelet Bay, Swansea Marina and Clyne Gardens."
+      },
+      {
+        name: "Clyne Gardens, Swansea",
+        cats: ["Nature & parks", "Wildlife"],
+        city: "Swansea",
+        distance: 47,
+        driveMinutes: 80,
+        direction: "West",
+        image: "assets/places/clyne-gardens-swansea.jpg",
+        official: "https://www.swansea.gov.uk/clynegardens",
+        destination: "Clyne Gardens, Swansea",
+        best: "April and May for rhododendrons and azaleas; mornings are usually quieter.",
+        summary: "Historic botanical park known for mature trees, colourful planting, woodland paths and valley views.",
+        nearby: "Swansea Bay promenade, Blackpill, Clyne Valley Country Park and Mumbles."
+      },
+      {
+        name: "Penllergare Valley Woods, Swansea",
+        cats: ["Nature & parks", "Wildlife", "Waterfall"],
+        city: "Swansea",
+        distance: 44,
+        driveMinutes: 70,
+        direction: "West",
+        image: "assets/places/penllergare-valley-woods-swansea.jpg",
+        official: "https://penllergare.org/",
+        destination: "Penllergare Valley Woods",
+        best: "Spring for woodland flowers or autumn colour; the waterfall is strongest after rain.",
+        summary: "Restored romantic valley landscape with woodland trails, lake, river and a compact waterfall.",
+        nearby: "Loughor Estuary, Swansea city centre, Clyne Gardens and the Gower gateway."
+      },
+      {
+        name: "Oystermouth Castle, Swansea",
+        cats: ["Castle", "Cityscape"],
+        city: "Swansea",
+        distance: 48,
+        driveMinutes: 85,
+        direction: "West",
+        image: "assets/places/oystermouth-castle-swansea.jpg",
+        official: "https://www.swansea.gov.uk/oystermouthcastle",
+        destination: "Oystermouth Castle, Swansea",
+        best: "Clear afternoons for views over Swansea Bay; check seasonal opening before travelling.",
+        summary: "Medieval castle above Mumbles with restored passages, sea views and a compact historic centre below.",
+        nearby: "Mumbles village, Swansea Bay promenade, Bracelet Bay and Clyne Gardens."
+      },
+      {
+        name: "Swansea Castle",
+        cats: ["Castle", "Cityscape"],
+        city: "Swansea",
+        distance: 42,
+        driveMinutes: 70,
+        direction: "West",
+        image: "assets/places/swansea-castle.jpg",
+        official: "https://cadw.gov.wales/visit/places-to-visit/swansea-castle",
+        destination: "Swansea Castle",
+        best: "Daylight for exterior views; combine it with the indoor museums in poor weather.",
+        summary: "Surviving medieval castle remains in central Swansea, easy to include on a city walking route.",
+        nearby: "Wind Street, Swansea Market, Glynn Vivian Art Gallery and the waterfront museums."
+      },
+      {
+        name: "Glynn Vivian Art Gallery, Swansea",
+        cats: ["Cityscape"],
+        city: "Swansea",
+        distance: 42,
+        driveMinutes: 70,
+        direction: "West",
+        image: "assets/places/glynn-vivian-art-gallery-swansea.jpg",
+        official: "https://www.glynnvivian.co.uk/",
+        destination: "Glynn Vivian Art Gallery, Swansea",
+        best: "A useful morning or rainy-day stop; check current exhibitions and opening days.",
+        summary: "Swansea's principal public art gallery, with historic collections and changing contemporary exhibitions.",
+        nearby: "Swansea Market, Swansea Castle, Plantasia, Wind Street and the marina."
+      },
+      {
+        name: "Newport Transporter Bridge",
+        cats: ["Cityscape", "Dam / engineering excellence"],
+        city: "Newport",
+        distance: 15,
+        driveMinutes: 30,
+        direction: "East",
+        image: "assets/places/newport-transporter-bridge.jpg",
+        official: "https://www.newport.gov.uk/transporterbridge",
+        destination: "Newport Transporter Bridge",
+        best: "Daylight for exterior views; check the official page for restoration work and visitor access before setting out.",
+        summary: "Newport's landmark steel transporter bridge and a standout piece of industrial engineering over the River Usk.",
+        nearby: "Newport city centre, Riverfront arts centre, Newport Market and Belle Vue Park."
+      },
+      {
+        name: "Tredegar House, Newport",
+        cats: ["Cityscape", "Wildlife", "Nature & parks"],
+        city: "Newport",
+        distance: 14,
+        driveMinutes: 25,
+        direction: "East",
+        image: "assets/places/tredegar-house-newport.jpg",
+        official: "https://www.nationaltrust.org.uk/visit/wales/tredegar-house",
+        destination: "Tredegar House, Newport",
+        best: "A dry morning or afternoon for the house, gardens and lakeside park; check seasonal house opening.",
+        summary: "Grand red-brick country house, formal gardens and parkland within Newport's city boundary.",
+        nearby: "Fourteen Locks, Newport Market, Belle Vue Park and the Transporter Bridge."
+      },
+      {
+        name: "Newport Market",
+        cats: ["Cityscape"],
+        city: "Newport",
+        distance: 14,
+        driveMinutes: 25,
+        direction: "East",
+        image: "assets/places/newport-market.jpg",
+        official: "https://newport-market.co.uk/",
+        destination: "Newport Market, High Street, Newport",
+        best: "Late morning through evening when traders and food venues are active; check individual opening hours.",
+        summary: "Restored Victorian market combining independent food, shopping and events in central Newport.",
+        nearby: "Newport Cathedral, Friars Walk, Riverfront arts centre and the Transporter Bridge."
+      },
+      {
+        name: "Belle Vue Park, Newport",
+        cats: ["Nature & parks", "Cityscape"],
+        city: "Newport",
+        distance: 14,
+        driveMinutes: 25,
+        direction: "East",
+        image: "assets/places/belle-vue-park-newport.jpg",
+        official: "https://www.newport.gov.uk/en/Leisure-Tourism/Parks-and-open-spaces/Belle-Vue-Park.aspx",
+        destination: "Belle Vue Park, Newport",
+        best: "Spring and summer for gardens; autumn for colour. The park also works well as a short city stop.",
+        summary: "Restored Victorian public park with ornamental gardens, conservatory, pavilion and mature trees.",
+        nearby: "Newport Cathedral, city centre, Newport Market and the Riverfront."
+      },
+      {
+        name: "Fourteen Locks Canal Centre, Newport",
+        cats: ["Nature & parks", "Dam / engineering excellence", "Wildlife"],
+        city: "Newport",
+        distance: 17,
+        driveMinutes: 30,
+        direction: "East",
+        image: "assets/places/fourteen-locks-canal-centre-newport.jpg",
+        official: "https://fourteenlocks.co.uk/",
+        destination: "Fourteen Locks Canal Centre, Newport",
+        best: "Dry mornings or afternoons; spring and autumn are comfortable for the canal-side walk.",
+        summary: "Historic Cefn flight of canal locks with an engineering centre, towpath walks and wooded valley scenery.",
+        nearby: "Rogerstone, Allt-yr-yn Nature Reserve, Tredegar House and Newport city centre."
+      },
+      {
+        name: "Allt-yr-yn Nature Reserve, Newport",
+        cats: ["Nature & parks", "Wildlife"],
+        city: "Newport",
+        distance: 15,
+        driveMinutes: 30,
+        direction: "East",
+        image: "assets/places/allt-yr-yn-nature-reserve-newport.jpg",
+        official: "https://www.newport.gov.uk/en/Leisure-Tourism/Parks-and-open-spaces/Allt-yr-yn.aspx",
+        destination: "Allt-yr-yn Nature Reserve, Newport",
+        best: "Spring for woodland flowers and birds; wear suitable shoes after rain.",
+        summary: "Woodland, meadow and pond reserve on Newport's western side with a network of informal walking paths.",
+        nearby: "Fourteen Locks, Belle Vue Park, Newport city centre and Tredegar House."
+      },
+      {
+        name: "Newport Castle",
+        cats: ["Castle", "Cityscape", "Dam / engineering excellence"],
+        city: "Newport",
+        distance: 14,
+        driveMinutes: 25,
+        direction: "East",
+        image: "assets/places/newport-castle.jpg",
+        official: "https://cadw.gov.wales/visit/places-to-visit/newport-castle",
+        destination: "Newport Castle",
+        best: "Daylight for exterior views; access is limited, so combine it with a wider city-centre walk.",
+        summary: "Riverside remains of a medieval castle built to control movement across the River Usk.",
+        nearby: "Newport Market, Riverfront arts centre, Newport Cathedral and the Transporter Bridge."
+      },
+      {
+        name: "Newport Cathedral",
+        cats: ["Cityscape"],
+        city: "Newport",
+        distance: 14,
+        driveMinutes: 25,
+        direction: "East",
+        image: "assets/places/newport-cathedral.png",
+        official: "https://www.newportcathedral.org.uk/",
+        destination: "Newport Cathedral",
+        best: "Daytime outside services and events; combine it with nearby Belle Vue Park.",
+        summary: "Historic St Woolos Cathedral on the hill above Newport, with architecture spanning many centuries.",
+        nearby: "Belle Vue Park, Newport Market, Friars Walk and the Riverfront."
+      }
+    ];
+
+    const filtersEl = document.getElementById("filters");
+    const cardsEl = document.getElementById("cards");
+    const countEl = document.getElementById("count");
+    const sortEl = document.getElementById("sort");
+    const accessibilityFilterEl = document.getElementById("accessibilityFilter");
+    const weatherOverviewEl = document.getElementById("weatherOverview");
+    const weatherTrendEl = document.getElementById("weatherTrend");
+    const walesWeatherMapEl = document.getElementById("walesWeatherMap");
+    const weatherUpdatedEl = document.getElementById("weatherUpdated");
+    const weatherRefreshEl = document.getElementById("weatherRefresh");
+    const emptyEl = document.getElementById("empty");
+    const cityFiltersEl = document.getElementById("cityFilters");
+    const checklistFormEl = document.getElementById("checklistForm");
+    const checklistTextEl = document.getElementById("checklistText");
+    const checklistCategoryEl = document.getElementById("checklistCategory");
+    const checklistSummaryEl = document.getElementById("checklistSummary");
+    const checklistSyncStatusEl = document.getElementById("checklistSyncStatus");
+    const clearCompletedEl = document.getElementById("clearCompleted");
+    const tripListEl = document.getElementById("tripList");
+    const checklistEmptyEl = document.getElementById("checklistEmpty");
+    const parkingStatusEl = document.getElementById("parkingStatus");
+    const saveParkingEl = document.getElementById("saveParking");
+    const openParkingPinEl = document.getElementById("openParkingPin");
+    const parkingDirectionsEl = document.getElementById("parkingDirections");
+    const clearParkingEl = document.getElementById("clearParking");
+    const active = new Set();
+    const cities = ["All areas", "Cardiff", "Swansea", "Newport"];
+    const accessibilityOrder = { Easy: 0, Moderate: 1, Challenging: 2 };
+    const weatherByPlace = new Map();
+    const weatherTrendByRegion = new Map();
+    const weatherMapMarkers = [];
+    let walesWeatherMap;
+    const weatherOverviewPlaces = [
+      { label: "Cardiff", placeName: "Cardiff Castle" },
+      { label: "Bannau Brycheiniog", placeName: "Bannau Brycheiniog National Park" },
+      { label: "Swansea Bay", placeName: "Swansea Bay and Mumbles promenade" },
+      { label: "Newport", placeName: "Newport Market" },
+      { label: "Elan Valley", placeName: "Elan Valley dams" }
+    ];
+    const weatherTrendRegions = [
+      { label: "South Wales", detail: "Cardiff area", latitude: 51.4816, longitude: -3.1791 },
+      { label: "Mid Wales", detail: "Elan Valley area", latitude: 52.2650, longitude: -3.5720 }
+    ];
+    const checklistStorageKey = "cardiff-trip-finder-checklist-v1";
+    const parkingStorageKey = "cardiff-trip-finder-parking-v1";
+    const supabaseConfig = window.TRIP_SUPABASE_CONFIG;
+    const supabaseClient = window.supabase && supabaseConfig
+      ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey, {
+          auth: { persistSession: false, autoRefreshToken: false }
+        })
+      : null;
+    let checklistItems = loadChecklistItems();
+    let savedParking = loadSavedParking();
+    let selectedCity = "All areas";
+
+    function checklistId() {
+      return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function loadSavedParking() {
+      try {
+        const stored = localStorage.getItem(parkingStorageKey);
+        if (!stored) return null;
+        const parsed = JSON.parse(stored);
+        if (Number.isFinite(parsed?.latitude) && Number.isFinite(parsed?.longitude)) return parsed;
+      } catch (error) {
+        // Parking remains available for this session when storage is unavailable.
+      }
+      return null;
+    }
+
+    function parkingPinUrl(parking) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${parking.latitude},${parking.longitude}`)}`;
+    }
+
+    function parkingDirectionsUrl(parking) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${parking.latitude},${parking.longitude}`)}&travelmode=walking`;
+    }
+
+    function renderSavedParking() {
+      if (!savedParking) {
+        parkingStatusEl.textContent = "No parking location saved.";
+        openParkingPinEl.hidden = true;
+        parkingDirectionsEl.hidden = true;
+        clearParkingEl.hidden = true;
+        return;
+      }
+      const savedTime = new Date(savedParking.savedAt);
+      const timeLabel = Number.isNaN(savedTime.getTime())
+        ? "Saved parking location"
+        : `Saved ${savedTime.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} at ${savedTime.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+      const accuracyLabel = Number.isFinite(savedParking.accuracy) ? ` · accuracy about ${Math.round(savedParking.accuracy)} m` : "";
+      parkingStatusEl.textContent = `${timeLabel}${accuracyLabel}`;
+      openParkingPinEl.href = parkingPinUrl(savedParking);
+      parkingDirectionsEl.href = parkingDirectionsUrl(savedParking);
+      openParkingPinEl.hidden = false;
+      parkingDirectionsEl.hidden = false;
+      clearParkingEl.hidden = false;
+      renderWeatherIcons();
+    }
+
+    function persistSavedParking() {
+      try {
+        if (savedParking) localStorage.setItem(parkingStorageKey, JSON.stringify(savedParking));
+        else localStorage.removeItem(parkingStorageKey);
+      } catch (error) {
+        // Keep the saved point usable for this session when storage is unavailable.
+      }
+    }
+
+    function loadChecklistItems() {
+      try {
+        const stored = localStorage.getItem(checklistStorageKey);
+        if (stored !== null) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (error) {
+        // The list still works for this session when storage is unavailable.
+      }
+      return [{ id: "starter-grocery", text: "Grocery shopping", category: "Grocery", done: false }];
+    }
+
+    function saveChecklistItems() {
+      try {
+        localStorage.setItem(checklistStorageKey, JSON.stringify(checklistItems));
+      } catch (error) {
+        // Keep the in-memory list usable when browser storage is unavailable.
+      }
+    }
+
+    function setChecklistSyncStatus(message, state = "") {
+      checklistSyncStatusEl.textContent = message;
+      checklistSyncStatusEl.classList.toggle("is-online", state === "online");
+      checklistSyncStatusEl.classList.toggle("is-offline", state === "offline");
+    }
+
+    function checklistRow(item) {
+      return {
+        id: item.id,
+        text: item.text,
+        category: item.category,
+        done: Boolean(item.done),
+        updated_at: new Date().toISOString()
+      };
+    }
+
+    async function loadSharedChecklist({ seedWhenEmpty = false } = {}) {
+      if (!supabaseClient) {
+        setChecklistSyncStatus("Saved on this device only", "offline");
+        return;
+      }
+      try {
+        const { data, error } = await supabaseClient
+          .from("trip_list_items")
+          .select("id,text,category,done,created_at")
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+
+        if (data.length === 0 && seedWhenEmpty && checklistItems.length) {
+          const { error: seedError } = await supabaseClient
+            .from("trip_list_items")
+            .upsert(checklistItems.map(checklistRow));
+          if (seedError) throw seedError;
+        } else {
+          checklistItems = data.map(({ id, text, category, done }) => ({ id, text, category, done }));
+          saveChecklistItems();
+          renderChecklist();
+        }
+        setChecklistSyncStatus("Shared list is online", "online");
+      } catch (error) {
+        console.warn("Shared checklist unavailable:", error.message);
+        setChecklistSyncStatus("Offline - changes stay on this device", "offline");
+      }
+    }
+
+    async function addSharedChecklistItem(item) {
+      if (!supabaseClient) return;
+      const { error } = await supabaseClient.from("trip_list_items").insert(checklistRow(item));
+      if (error) {
+        console.warn("Unable to add shared checklist item:", error.message);
+        setChecklistSyncStatus("Offline - item saved on this device", "offline");
+      }
+    }
+
+    async function updateSharedChecklistItem(item) {
+      if (!supabaseClient) return;
+      const { error } = await supabaseClient
+        .from("trip_list_items")
+        .update({ done: Boolean(item.done), updated_at: new Date().toISOString() })
+        .eq("id", item.id);
+      if (error) {
+        console.warn("Unable to update shared checklist item:", error.message);
+        setChecklistSyncStatus("Offline - change saved on this device", "offline");
+      }
+    }
+
+    async function deleteSharedChecklistItems(ids) {
+      if (!supabaseClient || ids.length === 0) return;
+      const { error } = await supabaseClient.from("trip_list_items").delete().in("id", ids);
+      if (error) {
+        console.warn("Unable to delete shared checklist items:", error.message);
+        setChecklistSyncStatus("Offline - change saved on this device", "offline");
+      }
+    }
+
+    function subscribeToSharedChecklist() {
+      if (!supabaseClient) return;
+      supabaseClient
+        .channel("cardiff-trip-list")
+        .on("postgres_changes", { event: "*", schema: "public", table: "trip_list_items" }, () => {
+          loadSharedChecklist();
+        })
+        .subscribe(status => {
+          if (status === "SUBSCRIBED") setChecklistSyncStatus("Shared list is online", "online");
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            setChecklistSyncStatus("Offline - changes stay on this device", "offline");
+          }
+        });
+    }
+
+    function escapeHtml(value) {
+      const element = document.createElement("span");
+      element.textContent = value;
+      return element.innerHTML;
+    }
+
+    function renderChecklist() {
+      tripListEl.innerHTML = checklistItems.map(item => `
+        <li class="checklist-item${item.done ? " is-done" : ""}">
+          <input type="checkbox" data-checklist-id="${item.id}" aria-label="Mark ${escapeHtml(item.text)} complete"${item.done ? " checked" : ""}>
+          <div>
+            <span class="item-text">${escapeHtml(item.text)}</span>
+            <span class="item-category">${escapeHtml(item.category)}</span>
+          </div>
+          <button class="item-delete" type="button" data-delete-id="${item.id}" aria-label="Delete ${escapeHtml(item.text)}" title="Delete item"><i data-lucide="trash-2" aria-hidden="true"></i></button>
+        </li>
+      `).join("");
+      const completed = checklistItems.filter(item => item.done).length;
+      checklistSummaryEl.textContent = `${checklistItems.length - completed} open · ${completed} completed`;
+      clearCompletedEl.disabled = completed === 0;
+      checklistEmptyEl.hidden = checklistItems.length !== 0;
+      renderWeatherIcons();
+    }
+
+    function mapUrl(destination) {
+      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(baseOrigin)}&destination=${encodeURIComponent(destination)}`;
+    }
+
+    function makeFilters() {
+      filters.forEach(filter => {
+        const button = document.createElement("button");
+        button.className = "chip";
+        button.type = "button";
+        button.textContent = filter;
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => {
+          if (active.has(filter)) active.delete(filter);
+          else active.add(filter);
+          button.setAttribute("aria-pressed", active.has(filter) ? "true" : "false");
+          render();
+        });
+        filtersEl.appendChild(button);
+      });
+    }
+
+    function makeCityFilters() {
+      cities.forEach(city => {
+        const button = document.createElement("button");
+        button.className = "city-chip";
+        button.type = "button";
+        button.textContent = city;
+        button.setAttribute("aria-pressed", city === selectedCity ? "true" : "false");
+        button.addEventListener("click", () => {
+          selectedCity = city;
+          cityFiltersEl.querySelectorAll("button").forEach(cityButton => {
+            cityButton.setAttribute("aria-pressed", cityButton.textContent === selectedCity ? "true" : "false");
+          });
+          render();
+        });
+        cityFiltersEl.appendChild(button);
+      });
+    }
+
+    function filteredPlaces() {
+      let result = places.filter(place => googleRatingFor(place)?.score >= 4);
+      result = result.filter(place => active.size === 0 || place.cats.some(cat => active.has(cat)));
+      if (selectedCity !== "All areas") {
+        result = result.filter(place => place.city === selectedCity);
+      }
+      if (accessibilityFilterEl.value !== "all") {
+        result = result.filter(place => accessibilityFor(place).level === accessibilityFilterEl.value);
+      }
+      const sort = sortEl.value;
+      result = result.slice().sort((a, b) => {
+        if (sort === "name") return a.name.localeCompare(b.name);
+        if (sort === "time") return a.driveMinutes - b.driveMinutes;
+        if (sort === "popularity") {
+          return googleRatingFor(b).reviews - googleRatingFor(a).reviews
+            || googleRatingFor(b).score - googleRatingFor(a).score
+            || a.distance - b.distance;
+        }
+        if (sort === "scenic") {
+          return scenicScoreFor(b) - scenicScoreFor(a)
+            || googleRatingFor(b).score - googleRatingFor(a).score
+            || a.distance - b.distance;
+        }
+        if (sort === "accessibility") {
+          return accessibilityOrder[accessibilityFor(a).level] - accessibilityOrder[accessibilityFor(b).level]
+            || a.distance - b.distance;
+        }
+        return a.distance - b.distance;
+      });
+      return result;
+    }
+
+    function tagHtml(cat) {
+      return `<span class="tag" style="background:${colours[cat] || "#34714f"}">${cat}</span>`;
+    }
+
+    function weatherDescription(code) {
+      if (code === 0) return "Clear";
+      if (code <= 2) return "Partly cloudy";
+      if (code === 3) return "Overcast";
+      if (code === 45 || code === 48) return "Fog";
+      if (code >= 51 && code <= 57) return "Drizzle";
+      if (code >= 61 && code <= 67) return "Rain";
+      if (code >= 71 && code <= 77) return "Snow";
+      if (code >= 80 && code <= 82) return "Showers";
+      if (code === 85 || code === 86) return "Snow showers";
+      if (code >= 95) return "Thunderstorm";
+      return "Current conditions";
+    }
+
+    function weatherIconName(code) {
+      if (code === 0) return "sun";
+      if (code <= 2) return "cloud-sun";
+      if (code === 3) return "cloud";
+      if (code === 45 || code === 48) return "cloud-fog";
+      if (code >= 51 && code <= 57) return "cloud-drizzle";
+      if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "cloud-rain";
+      if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "cloud-snow";
+      if (code >= 95) return "cloud-lightning";
+      return "cloud";
+    }
+
+    function weatherIconColour(code) {
+      if (code === 0) return "icon-clear";
+      if (code <= 3) return "icon-cloud";
+      if (code === 45 || code === 48) return "icon-fog";
+      if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "icon-rain";
+      if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "icon-snow";
+      if (code >= 95) return "icon-thunder";
+      return "icon-cloud";
+    }
+
+    function weatherIconMarkup(code, className = "weather-icon") {
+      return `<i data-lucide="${weatherIconName(code)}" class="${className} ${weatherIconColour(code)}" aria-hidden="true"></i>`;
+    }
+
+    function renderWeatherIcons() {
+      if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    function temperatureClass(temperature) {
+      if (temperature <= 5) return "temperature-cold";
+      if (temperature <= 12) return "temperature-cool";
+      if (temperature <= 20) return "temperature-mild";
+      if (temperature <= 25) return "temperature-warm";
+      return "temperature-hot";
+    }
+
+    function updateWeatherOverview() {
+      weatherOverviewEl.innerHTML = weatherOverviewPlaces.map((item, index) => {
+        const weather = weatherByPlace.get(normalizePlaceName(item.placeName));
+        const temperature = weather ? `${Math.round(weather.temperature_2m)}&deg;C` : "--";
+        const temperatureColour = weather ? temperatureClass(weather.temperature_2m) : "";
+        const condition = weather ? weatherDescription(weather.weather_code) : weather === false ? "Unavailable" : "Loading...";
+        const conditionIcon = weather ? weatherIconMarkup(weather.weather_code) : "";
+        const wind = weather ? `Rain ${Number(weather.precipitation || 0).toFixed(1)} mm · Wind ${Math.round(weather.wind_speed_10m)} mph` : "Waiting for live data";
+        return `
+          <article class="weather-summary${index === 0 ? " is-primary" : ""}">
+            <span class="weather-place">${item.label}</span>
+            <div class="weather-reading">
+              <strong class="weather-temperature ${temperatureColour}">${temperature}</strong>
+              <span class="weather-condition">${conditionIcon}${condition}</span>
+            </div>
+            <p class="weather-wind">${wind}</p>
+          </article>
+        `;
+      }).join("");
+      renderWeatherIcons();
+    }
+
+    function updateWeatherTrends() {
+      weatherTrendEl.innerHTML = weatherTrendRegions.map(region => {
+        const points = weatherTrendByRegion.get(region.label);
+        if (points === false) {
+          return `
+            <article class="weather-trend">
+              <div class="weather-trend-heading"><strong>${region.label}</strong><span>${region.detail}</span></div>
+              <p class="weather-wind">Trend unavailable. Check your internet connection.</p>
+            </article>
+          `;
+        }
+        const pointMarkup = points ? points.map((point, index) => `
+          <div class="trend-point" title="${weatherDescription(point.weatherCode)}, ${point.rain}% chance of rain">
+            <time class="trend-time" datetime="${point.time}">${index === 0 ? "Now" : point.time.slice(11, 16)}</time>
+            ${weatherIconMarkup(point.weatherCode, "trend-weather-icon")}
+            <strong class="trend-temperature ${temperatureClass(point.temperature)}">${Math.round(point.temperature)}&deg;</strong>
+            <div class="rain-meter" aria-hidden="true"><span style="--rain:${point.rain}%"></span></div>
+            <span class="trend-rain">Rain ${point.rain}%</span>
+          </div>
+        `).join("") : `<p class="weather-wind">Loading 12-hour trend...</p>`;
+        return `
+          <article class="weather-trend">
+            <div class="weather-trend-heading">
+              <strong>${region.label}</strong>
+              <span>${region.detail} · temperature and rain</span>
+            </div>
+            <div class="trend-points">${pointMarkup}</div>
+          </article>
+        `;
+      }).join("");
+      renderWeatherIcons();
+    }
+
+    function ensureWeatherMap() {
+      if (walesWeatherMap) return true;
+      if (typeof L === "undefined") {
+        walesWeatherMapEl.innerHTML = `<p class="weather-map-loading">Map unavailable. Check your internet connection.</p>`;
+        return false;
+      }
+      walesWeatherMapEl.innerHTML = "";
+      walesWeatherMap = L.map(walesWeatherMapEl, { scrollWheelZoom: false });
+      walesWeatherMap.on("popupopen", renderWeatherIcons);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+      }).addTo(walesWeatherMap);
+      walesWeatherMap.fitBounds([[51.35, -5.5], [53.5, -2.5]], { padding: [12, 12] });
+      return true;
+    }
+
+    function updateWeatherMap() {
+      if (weatherView.hidden || !ensureWeatherMap()) return;
+      weatherMapMarkers.splice(0).forEach(marker => marker.remove());
+      weatherOverviewPlaces.forEach(item => {
+        const key = normalizePlaceName(item.placeName);
+        const weather = weatherByPlace.get(key);
+        const coordinates = weatherCoordinates.get(key);
+        if (!weather || !coordinates) return;
+        const colourClass = temperatureClass(weather.temperature_2m);
+        const temperature = Math.round(weather.temperature_2m);
+        const rain = Number(weather.precipitation || 0).toFixed(1);
+        const icon = L.divIcon({
+          className: "",
+          html: `<div class="weather-map-marker ${colourClass}" aria-hidden="true">${weatherIconMarkup(weather.weather_code, "map-weather-icon")}<span>${temperature}&deg;</span></div>`,
+          iconSize: [46, 46],
+          iconAnchor: [23, 23]
+        });
+        const marker = L.marker([coordinates.latitude, coordinates.longitude], { icon })
+          .addTo(walesWeatherMap)
+          .bindPopup(`
+            <div class="weather-map-popup">
+              <strong>${item.label}</strong>
+              <p class="weather-condition">${weatherIconMarkup(weather.weather_code)}<span class="${colourClass}">${temperature}&deg;C</span> · ${weatherDescription(weather.weather_code)}</p>
+              <p>Rain ${rain} mm · Wind ${Math.round(weather.wind_speed_10m)} mph</p>
+            </div>
+          `);
+        marker.bindTooltip(`${item.label}: ${temperature}°C, rain ${rain} mm, wind ${Math.round(weather.wind_speed_10m)} mph`);
+        weatherMapMarkers.push(marker);
+      });
+      renderWeatherIcons();
+      walesWeatherMap.invalidateSize();
+    }
+
+    async function loadWeatherTrends() {
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      url.searchParams.set("latitude", weatherTrendRegions.map(region => region.latitude).join(","));
+      url.searchParams.set("longitude", weatherTrendRegions.map(region => region.longitude).join(","));
+      url.searchParams.set("current", "temperature_2m");
+      url.searchParams.set("hourly", "temperature_2m,weather_code,precipitation_probability");
+      url.searchParams.set("forecast_days", "2");
+      url.searchParams.set("timezone", "Europe/London");
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Weather trend request failed");
+        const payload = await response.json();
+        const reports = Array.isArray(payload) ? payload : [payload];
+        weatherTrendRegions.forEach((region, regionIndex) => {
+          const hourly = reports[regionIndex]?.hourly;
+          if (!hourly) {
+            weatherTrendByRegion.set(region.label, false);
+            return;
+          }
+          const currentHour = reports[regionIndex]?.current?.time.slice(0, 13) || hourly.time[0].slice(0, 13);
+          const startIndex = Math.max(0, hourly.time.findIndex(time => time.slice(0, 13) >= currentHour));
+          const points = [0, 3, 6, 9, 12].map(offset => {
+            const index = Math.min(startIndex + offset, hourly.time.length - 1);
+            return {
+              time: hourly.time[index],
+              temperature: hourly.temperature_2m[index],
+              weatherCode: hourly.weather_code[index],
+              rain: hourly.precipitation_probability[index] ?? 0
+            };
+          });
+          weatherTrendByRegion.set(region.label, points);
+        });
+      } catch (error) {
+        weatherTrendRegions.forEach(region => weatherTrendByRegion.set(region.label, false));
+      }
+      weatherTrendEl.setAttribute("aria-busy", "false");
+      updateWeatherTrends();
+    }
+
+    function updateWeatherCards() {
+      document.querySelectorAll("[data-weather-key]").forEach(element => {
+        const weather = weatherByPlace.get(element.dataset.weatherKey);
+        if (weather === false) {
+          element.classList.add("is-unavailable");
+          element.textContent = "Live weather unavailable";
+          return;
+        }
+        if (!weather) {
+          element.classList.remove("is-unavailable");
+          element.textContent = "Loading live weather...";
+          return;
+        }
+        element.classList.remove("is-unavailable");
+        element.innerHTML = `<b>Live weather</b> ${weatherIconMarkup(weather.weather_code)} <span class="${temperatureClass(weather.temperature_2m)}">${Math.round(weather.temperature_2m)}&deg;C</span> &middot; ${weatherDescription(weather.weather_code)} &middot; Wind ${Math.round(weather.wind_speed_10m)} mph`;
+      });
+      renderWeatherIcons();
+    }
+
+    async function loadWeather() {
+      const weatherPlaces = places.filter(place => googleRatingFor(place)?.score >= 4);
+      const coordinates = weatherPlaces.map(place => weatherCoordinates.get(normalizePlaceName(place.name)));
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      url.searchParams.set("latitude", coordinates.map(item => item.latitude).join(","));
+      url.searchParams.set("longitude", coordinates.map(item => item.longitude).join(","));
+      url.searchParams.set("current", "temperature_2m,weather_code,wind_speed_10m,precipitation");
+      url.searchParams.set("wind_speed_unit", "mph");
+      url.searchParams.set("timezone", "auto");
+
+      weatherRefreshEl.disabled = true;
+      weatherOverviewEl.setAttribute("aria-busy", "true");
+      weatherTrendEl.setAttribute("aria-busy", "true");
+      weatherUpdatedEl.textContent = "Updating live weather...";
+      const trendRequest = loadWeatherTrends();
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Weather request failed");
+        const payload = await response.json();
+        const reports = Array.isArray(payload) ? payload : [payload];
+        weatherPlaces.forEach((place, index) => {
+          weatherByPlace.set(normalizePlaceName(place.name), reports[index]?.current || false);
+        });
+        weatherUpdatedEl.textContent = `Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · refreshes every 15 minutes`;
+      } catch (error) {
+        weatherPlaces.forEach(place => weatherByPlace.set(normalizePlaceName(place.name), false));
+        weatherUpdatedEl.textContent = "Live weather unavailable. Check your internet connection.";
+      }
+      weatherOverviewEl.setAttribute("aria-busy", "false");
+      await trendRequest;
+      weatherRefreshEl.disabled = false;
+      updateWeatherOverview();
+      updateWeatherMap();
+      updateWeatherCards();
+    }
+
+    function render() {
+      const result = filteredPlaces();
+      cardsEl.innerHTML = result.map(place => {
+        const recommended = isRecommendedPlace(place);
+        const googleRating = googleRatingFor(place);
+        const accessibility = accessibilityFor(place);
+        const weatherKey = normalizePlaceName(place.name);
+        return `
+        <article class="card${recommended ? " is-recommended" : ""}"${recommended ? ` aria-label="${place.name}, recommended itinerary"` : ""}>
+          <div class="photo">
+            <img src="${place.image}" alt="${place.name}" loading="lazy">
+            <div class="distance">${place.distance} mi | ${place.driveMinutes} min</div>
+            <div class="google-rating" aria-label="Google rating ${googleRating.score} out of 5 from ${googleRating.reviews.toLocaleString("en-GB")} reviews">Google ${googleRating.score.toFixed(1)} &#9733; <small>${googleRating.reviews.toLocaleString("en-GB")}</small></div>
+          </div>
+          <div class="content">
+            <h2>${place.name}</h2>
+            <div class="tags">${place.cats.map(tagHtml).join("")}</div>
+            <div class="live-weather" data-weather-key="${weatherKey}" aria-live="polite">Loading live weather...</div>
+            <p class="desc">${place.summary}</p>
+            <div class="facts">
+              <div class="fact"><b>Direction</b><span>${place.direction} from CF10 3EA</span></div>
+              <div class="fact"><b>Best time</b><span>${place.best}</span></div>
+              <div class="fact access-fact"><b>Accessibility: ${accessibility.level}</b><span>${accessibility.note}</span></div>
+            </div>
+            <p class="detail nearby"><b>On the way / nearby:</b> ${place.nearby}</p>
+            <div class="actions">
+              <a class="primary" href="${mapUrl(place.destination)}" target="_blank" rel="noopener">Open map</a>
+              <a class="secondary" href="${place.official}" target="_blank" rel="noopener">Official info</a>
+            </div>
+          </div>
+        </article>
+      `;
+      }).join("");
+      countEl.textContent = `${result.length} place${result.length === 1 ? "" : "s"} shown`;
+      emptyEl.style.display = result.length ? "none" : "block";
+      updateWeatherCards();
+    }
+
+    const pageTabs = document.querySelectorAll(".page-tab");
+    const mobileMenuToggleEl = document.getElementById("mobileMenuToggle");
+    const mobileMenuCloseEl = document.getElementById("mobileMenuClose");
+    const mobileMenuBackdropEl = document.getElementById("mobileMenuBackdrop");
+    const mobileNavDrawerEl = document.getElementById("mobileNavDrawer");
+    const exploreView = document.getElementById("exploreView");
+    const weatherView = document.getElementById("weatherView");
+    const homeView = document.getElementById("homeView");
+    const parkingView = document.getElementById("parkingView");
+    const checklistView = document.getElementById("checklistView");
+    const instagramView = document.getElementById("instagramView");
+    const recommendedView = document.getElementById("recommendedView");
+    const pageViews = {
+      exploreTab: exploreView,
+      weatherTab: weatherView,
+      recommendedTab: recommendedView,
+      homeStayTab: homeView,
+      parkingTab: parkingView,
+      checklistTab: checklistView,
+      instagramTab: instagramView
+    };
+
+    function openMobileMenu() {
+      mobileNavDrawerEl.classList.add("is-open");
+      mobileMenuBackdropEl.hidden = false;
+      mobileMenuToggleEl.setAttribute("aria-expanded", "true");
+      document.body.classList.add("menu-open");
+      mobileMenuCloseEl.focus();
+    }
+
+    function closeMobileMenu(restoreFocus = false) {
+      const wasOpen = mobileNavDrawerEl.classList.contains("is-open");
+      mobileNavDrawerEl.classList.remove("is-open");
+      mobileMenuBackdropEl.hidden = true;
+      mobileMenuToggleEl.setAttribute("aria-expanded", "false");
+      document.body.classList.remove("menu-open");
+      if (wasOpen && restoreFocus) mobileMenuToggleEl.focus();
+    }
+
+    mobileMenuToggleEl.addEventListener("click", openMobileMenu);
+    mobileMenuCloseEl.addEventListener("click", () => closeMobileMenu(true));
+    mobileMenuBackdropEl.addEventListener("click", () => closeMobileMenu(true));
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeMobileMenu(true);
+    });
+    window.matchMedia("(min-width: 901px)").addEventListener("change", event => {
+      if (event.matches) closeMobileMenu(false);
+    });
+
+    pageTabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        Object.values(pageViews).forEach(view => { view.hidden = true; });
+        pageViews[tab.id].hidden = false;
+        pageTabs.forEach(pageTab => {
+          pageTab.setAttribute("aria-selected", pageTab === tab ? "true" : "false");
+        });
+        if (tab.id === "weatherTab") {
+          requestAnimationFrame(updateWeatherMap);
+        }
+        closeMobileMenu(false);
+        window.scrollTo({
+          top: 0,
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
+        });
+      });
+    });
+
+    sortEl.addEventListener("change", render);
+    accessibilityFilterEl.addEventListener("change", render);
+    weatherRefreshEl.addEventListener("click", loadWeather);
+    saveParkingEl.addEventListener("click", () => {
+      if (!window.isSecureContext || !navigator.geolocation) {
+        parkingStatusEl.textContent = "Location access requires HTTPS and a supported browser. It will work when hosted on GitHub Pages.";
+        return;
+      }
+
+      let mapsWindow = null;
+      try {
+        mapsWindow = window.open("about:blank", "_blank");
+        if (mapsWindow) {
+          mapsWindow.opener = null;
+          mapsWindow.location.href = "https://www.google.com/maps/@?api=1&map_action=map";
+        }
+      } catch (error) {
+        mapsWindow = null;
+      }
+
+      saveParkingEl.disabled = true;
+      parkingStatusEl.textContent = "Finding your parking location...";
+      navigator.geolocation.getCurrentPosition(position => {
+        savedParking = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          savedAt: new Date().toISOString()
+        };
+        persistSavedParking();
+        renderSavedParking();
+        saveParkingEl.disabled = false;
+        const mapUrl = parkingPinUrl(savedParking);
+        try {
+          if (mapsWindow && !mapsWindow.closed) mapsWindow.location.href = mapUrl;
+          else window.open(mapUrl, "_blank", "noopener");
+        } catch (error) {
+          parkingStatusEl.textContent += " · Tap Open saved pin to view it in Google Maps.";
+        }
+      }, error => {
+        saveParkingEl.disabled = false;
+        if (mapsWindow && !mapsWindow.closed) mapsWindow.close();
+        const messages = {
+          1: "Location permission was not granted.",
+          2: "Your location is currently unavailable.",
+          3: "Location lookup timed out. Please try again."
+        };
+        parkingStatusEl.textContent = messages[error.code] || "Unable to save the parking location.";
+      }, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 30000
+      });
+    });
+    clearParkingEl.addEventListener("click", () => {
+      savedParking = null;
+      persistSavedParking();
+      renderSavedParking();
+    });
+    checklistFormEl.addEventListener("submit", event => {
+      event.preventDefault();
+      const text = checklistTextEl.value.trim();
+      if (!text) return;
+      const item = { id: checklistId(), text, category: checklistCategoryEl.value, done: false };
+      checklistItems.push(item);
+      checklistTextEl.value = "";
+      saveChecklistItems();
+      renderChecklist();
+      addSharedChecklistItem(item);
+      checklistTextEl.focus();
+    });
+    tripListEl.addEventListener("change", event => {
+      const checkbox = event.target.closest("[data-checklist-id]");
+      if (!checkbox) return;
+      const item = checklistItems.find(entry => entry.id === checkbox.dataset.checklistId);
+      if (!item) return;
+      item.done = checkbox.checked;
+      saveChecklistItems();
+      renderChecklist();
+      updateSharedChecklistItem(item);
+    });
+    tripListEl.addEventListener("click", event => {
+      const deleteButton = event.target.closest("[data-delete-id]");
+      if (!deleteButton) return;
+      const deletedId = deleteButton.dataset.deleteId;
+      checklistItems = checklistItems.filter(item => item.id !== deletedId);
+      saveChecklistItems();
+      renderChecklist();
+      deleteSharedChecklistItems([deletedId]);
+    });
+    clearCompletedEl.addEventListener("click", () => {
+      const completedIds = checklistItems.filter(item => item.done).map(item => item.id);
+      checklistItems = checklistItems.filter(item => !item.done);
+      saveChecklistItems();
+      renderChecklist();
+      deleteSharedChecklistItems(completedIds);
+    });
+    makeFilters();
+    makeCityFilters();
+    render();
+    renderChecklist();
+    loadSharedChecklist({ seedWhenEmpty: true });
+    subscribeToSharedChecklist();
+    renderSavedParking();
+    updateWeatherOverview();
+    updateWeatherTrends();
+    loadWeather();
+    setInterval(loadWeather, 15 * 60 * 1000);
+  </script>
+</body>
+</html>
