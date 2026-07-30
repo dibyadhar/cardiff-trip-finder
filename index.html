@@ -556,6 +556,25 @@
       color: var(--muted);
       font-size: 12px;
     }
+    .footer-note { margin: 0; line-height: 1.55; }
+    .footer-credit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 18px 0 0;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .footer-credit svg {
+      width: 15px;
+      height: 15px;
+      color: #ef6d78;
+      fill: currentColor;
+    }
     [role="tabpanel"][hidden] { display: none; }
     .home-view {
       padding: 24px clamp(16px, 4vw, 42px) 38px;
@@ -1620,7 +1639,8 @@
   </section>
 
   <footer>
-    Base used for all navigation links: CF10 3EA, Cardiff. Google ratings checked 30 July 2026; places below 4.0 are excluded. Ratings can change. Accessibility levels are planning guidance, not formal access audits. Recheck weather, tides, opening hours, booking requirements and parking before travelling.
+    <p class="footer-note">Base used for all navigation links: CF10 3EA, Cardiff. Google ratings checked 30 July 2026; places below 4.0 are excluded. Ratings can change. Accessibility levels are planning guidance, not formal access audits. Recheck weather, tides, opening hours, booking requirements and parking before travelling.</p>
+    <p class="footer-credit">Made by Dibya with <i data-lucide="heart" aria-label="love"></i></p>
   </footer>
   </div>
 
