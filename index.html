@@ -3211,7 +3211,7 @@
 
     function weatherUpdateLabel(savedAt, source, cached = false) {
       const time = new Date(savedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-      return `Updated ${time}${cached ? " from hourly cache" : ""} via ${source} · refreshes hourly`;
+      return `Updated ${time}${cached ? " from hourly cache" : ""} via ${source} · cached for 1 hour`;
     }
 
     function restoreWeatherTrendCache() {
@@ -4143,7 +4143,6 @@
     updateWeatherOverview();
     updateWeatherTrends();
     loadWeather();
-    setInterval(loadWeather, 60 * 60 * 1000);
   </script>
 </body>
 </html>
