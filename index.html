@@ -575,6 +575,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 7px;
       border-radius: 7px;
       padding: 8px 10px;
       min-height: 36px;
@@ -582,6 +583,7 @@
       text-decoration: none;
       font-size: 13px;
     }
+    .actions svg { width: 16px; height: 16px; flex: 0 0 auto; }
     .primary {
       color: white;
       background: var(--green);
@@ -1752,6 +1754,7 @@
       .content { padding: 14px; }
       .actions { display: grid; grid-template-columns: 1fr 1fr; }
       .actions a { min-height: 44px; }
+      .actions .official-link { grid-column: 1 / -1; }
       .recommended-view, .home-view { padding: 20px 16px 24px; }
       .trust-hero { min-height: 350px; }
       .trust-content h2 { font-size: 32px; }
@@ -3362,7 +3365,11 @@
     }
 
     function mapUrl(destination) {
-      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(baseOrigin)}&destination=${encodeURIComponent(destination)}`;
+      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(baseOrigin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+    }
+
+    function currentLocationMapUrl(destination) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving&dir_action=navigate`;
     }
 
     function makeFilters() {
@@ -3745,8 +3752,9 @@
             </div>
             <p class="detail nearby"><b>On the way / nearby:</b> ${place.nearby}</p>
             <div class="actions">
-              <a class="primary" href="${mapUrl(place.destination)}" target="_blank" rel="noopener">Open map</a>
-              <a class="secondary" href="${place.official}" target="_blank" rel="noopener">Official info</a>
+              <a class="primary" href="${mapUrl(place.destination)}" target="_blank" rel="noopener"><i data-lucide="house" aria-hidden="true"></i>From stay</a>
+              <a class="secondary" href="${currentLocationMapUrl(place.destination)}" target="_blank" rel="noopener"><i data-lucide="locate-fixed" aria-hidden="true"></i>From here</a>
+              <a class="secondary official-link" href="${place.official}" target="_blank" rel="noopener"><i data-lucide="external-link" aria-hidden="true"></i>Official info</a>
             </div>
           </div>
         </article>
