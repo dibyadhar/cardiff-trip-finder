@@ -3123,6 +3123,9 @@
     const parkingStorageKey = "cardiff-trip-finder-parking-v1";
     const favouriteStorageKey = "cardiff-trip-finder-favourites-v1";
     const themeStorageKey = "cardiff-trip-finder-theme";
+    const weatherCacheKey = "cardiff-trip-finder-weather-v1";
+    const weatherTrendCacheKey = "cardiff-trip-finder-weather-trends-v1";
+    const weatherCacheLifetime = 60 * 60 * 1000;
     const supabaseConfig = window.TRIP_SUPABASE_CONFIG;
     const supabaseClient = window.supabase && supabaseConfig
       ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey, {
@@ -3175,6 +3178,65 @@
         localStorage.setItem(favouriteStorageKey, JSON.stringify([...favouritePlaceKeys]));
       } catch (error) {
         // Keep favourites available for this session when storage is unavailable.
+      }
+    }
+
+    function restoreWeatherCache(weatherPlaces, maxAge = weatherCacheLifetime) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(weatherCacheKey) || "null");
+        if (!cached?.savedAt || !cached?.items || Date.now() - cached.savedAt > maxAge) return null;
+        weatherPlaces.forEach(place => {
+          const key = normalizePlaceName(place.name);
+          weatherByPlace.set(key, cached.items[key] || false);
+        });
+        return cached;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function saveWeatherCache(weatherPlaces, source) {
+      try {
+        const items = {};
+        weatherPlaces.forEach(place => {
+          const key = normalizePlaceName(place.name);
+          const weather = weatherByPlace.get(key);
+          if (weather) items[key] = weather;
+        });
+        localStorage.setItem(weatherCacheKey, JSON.stringify({ savedAt: Date.now(), source, items }));
+      } catch (error) {
+        // Live weather still works when browser storage is unavailable.
+      }
+    }
+
+    function weatherUpdateLabel(savedAt, source, cached = false) {
+      const time = new Date(savedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      return `Updated ${time}${cached ? " from hourly cache" : ""} via ${source} · refreshes hourly`;
+    }
+
+    function restoreWeatherTrendCache() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(weatherTrendCacheKey) || "null");
+        if (!cached?.savedAt || !cached?.regions || Date.now() - cached.savedAt > weatherCacheLifetime) return false;
+        weatherTrendRegions.forEach(region => {
+          weatherTrendByRegion.set(region.label, cached.regions[region.label] || false);
+        });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function saveWeatherTrendCache() {
+      try {
+        const regions = {};
+        weatherTrendRegions.forEach(region => {
+          const points = weatherTrendByRegion.get(region.label);
+          if (points) regions[region.label] = points;
+        });
+        localStorage.setItem(weatherTrendCacheKey, JSON.stringify({ savedAt: Date.now(), regions }));
+      } catch (error) {
+        // Trend data remains available for this session when storage is unavailable.
       }
     }
 
@@ -3704,7 +3766,12 @@
       walesWeatherMap.invalidateSize();
     }
 
-    async function loadWeatherTrends() {
+    async function loadWeatherTrends({ force = false } = {}) {
+      if (!force && restoreWeatherTrendCache()) {
+        weatherTrendEl.setAttribute("aria-busy", "false");
+        updateWeatherTrends();
+        return;
+      }
       const url = new URL("https://api.open-meteo.com/v1/forecast");
       url.searchParams.set("latitude", weatherTrendRegions.map(region => region.latitude).join(","));
       url.searchParams.set("longitude", weatherTrendRegions.map(region => region.longitude).join(","));
@@ -3749,6 +3816,7 @@
           weatherTrendRegions.forEach(region => weatherTrendByRegion.set(region.label, false));
         }
       }
+      if (weatherTrendRegions.some(region => weatherTrendByRegion.get(region.label))) saveWeatherTrendCache();
       weatherTrendEl.setAttribute("aria-busy", "false");
       updateWeatherTrends();
     }
@@ -3772,12 +3840,13 @@
       renderWeatherIcons();
     }
 
-    async function loadWeather() {
+    async function loadWeather({ force = false } = {}) {
       const weatherPlaces = places.filter(place => googleRatingFor(place)?.score >= 4);
-      const references = weatherReferences();
+      const exactWeatherPlaces = weatherPlaces.filter(place => weatherCoordinates.has(normalizePlaceName(place.name)));
+      const exactCoordinates = exactWeatherPlaces.map(place => weatherCoordinates.get(normalizePlaceName(place.name)));
       const url = new URL("https://api.open-meteo.com/v1/forecast");
-      url.searchParams.set("latitude", references.map(item => item.coordinates.latitude).join(","));
-      url.searchParams.set("longitude", references.map(item => item.coordinates.longitude).join(","));
+      url.searchParams.set("latitude", exactCoordinates.map(item => item.latitude).join(","));
+      url.searchParams.set("longitude", exactCoordinates.map(item => item.longitude).join(","));
       url.searchParams.set("current", "temperature_2m,weather_code,wind_speed_10m,precipitation");
       url.searchParams.set("wind_speed_unit", "mph");
       url.searchParams.set("timezone", "auto");
@@ -3786,28 +3855,55 @@
       weatherOverviewEl.setAttribute("aria-busy", "true");
       weatherTrendEl.setAttribute("aria-busy", "true");
       weatherUpdatedEl.textContent = "Updating live weather...";
-      const trendRequest = loadWeatherTrends();
+      const trendRequest = loadWeatherTrends({ force });
+
+      if (!force) {
+        const cached = restoreWeatherCache(weatherPlaces);
+        if (cached) {
+          weatherUpdatedEl.textContent = weatherUpdateLabel(cached.savedAt, cached.source || "saved weather", true);
+          weatherOverviewEl.setAttribute("aria-busy", "false");
+          await trendRequest;
+          weatherRefreshEl.disabled = false;
+          updateWeatherOverview();
+          updateWeatherMap();
+          updateWeatherCards();
+          return;
+        }
+      }
 
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Open-Meteo request failed (${response.status})`);
         const payload = await response.json();
         const reports = Array.isArray(payload) ? payload : [payload];
-        applyRegionalWeather(weatherPlaces, references, reports.map(report => report?.current || false));
-        weatherUpdatedEl.textContent = `Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · refreshes every 15 minutes`;
+        exactWeatherPlaces.forEach((place, index) => {
+          weatherByPlace.set(normalizePlaceName(place.name), reports[index]?.current || false);
+        });
+        weatherPlaces.filter(place => !weatherCoordinates.has(normalizePlaceName(place.name))).forEach(place => {
+          weatherByPlace.set(normalizePlaceName(place.name), false);
+        });
+        saveWeatherCache(weatherPlaces, "Open-Meteo exact locations");
+        weatherUpdatedEl.textContent = weatherUpdateLabel(Date.now(), "Open-Meteo exact locations");
       } catch (error) {
         console.warn("Open-Meteo unavailable; trying MET Norway:", error.message);
         try {
+          const references = weatherReferences();
           const fallbackPayloads = await Promise.all(references.map(reference => fetchMetForecast(
             reference.coordinates.latitude,
             reference.coordinates.longitude
           )));
           applyRegionalWeather(weatherPlaces, references, fallbackPayloads.map(metCurrentWeather));
-          weatherUpdatedEl.textContent = `Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} via MET Norway · refreshes every 15 minutes`;
+          saveWeatherCache(weatherPlaces, "MET Norway regional fallback");
+          weatherUpdatedEl.textContent = weatherUpdateLabel(Date.now(), "MET Norway regional fallback");
         } catch (fallbackError) {
           console.warn("Live weather fallback unavailable:", fallbackError.message);
-          weatherPlaces.forEach(place => weatherByPlace.set(normalizePlaceName(place.name), false));
-          weatherUpdatedEl.textContent = "Live weather unavailable. Check your internet connection.";
+          const stale = restoreWeatherCache(weatherPlaces, Number.POSITIVE_INFINITY);
+          if (stale) {
+            weatherUpdatedEl.textContent = `Live update unavailable · showing saved weather from ${new Date(stale.savedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+          } else {
+            weatherPlaces.forEach(place => weatherByPlace.set(normalizePlaceName(place.name), false));
+            weatherUpdatedEl.textContent = "Live weather unavailable. Check your internet connection.";
+          }
         }
       }
       weatherOverviewEl.setAttribute("aria-busy", "false");
@@ -3940,7 +4036,7 @@
     themeToggleEl.addEventListener("click", () => {
       applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
     });
-    weatherRefreshEl.addEventListener("click", loadWeather);
+    weatherRefreshEl.addEventListener("click", () => loadWeather({ force: true }));
     saveParkingEl.addEventListener("click", () => {
       if (!window.isSecureContext || !navigator.geolocation) {
         parkingStatusEl.textContent = "Location access requires HTTPS and a supported browser. It will work when hosted on GitHub Pages.";
@@ -4047,7 +4143,7 @@
     updateWeatherOverview();
     updateWeatherTrends();
     loadWeather();
-    setInterval(loadWeather, 15 * 60 * 1000);
+    setInterval(loadWeather, 60 * 60 * 1000);
   </script>
 </body>
 </html>
