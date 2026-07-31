@@ -3238,7 +3238,7 @@
     const parkingStorageKey = "cardiff-trip-finder-parking-v1";
     const favouriteStorageKey = "cardiff-trip-finder-favourites-v1";
     const themeStorageKey = "cardiff-trip-finder-theme";
-    const weatherCacheKey = "cardiff-trip-finder-weather-v1";
+    const weatherCacheKey = "cardiff-trip-finder-weather-v3";
     const weatherTrendCacheKey = "cardiff-trip-finder-weather-trends-v1";
     const weatherCacheLifetime = 60 * 60 * 1000;
     const supabaseConfig = window.TRIP_SUPABASE_CONFIG;
@@ -3752,6 +3752,30 @@
       return response.json();
     }
 
+    async function fetchMetForecastBatch(coordinates, batchSize = 6) {
+      const payloads = Array(coordinates.length).fill(null);
+      for (let start = 0; start < coordinates.length; start += batchSize) {
+        const batch = coordinates.slice(start, start + batchSize);
+        const results = await Promise.allSettled(batch.map(item => fetchMetForecast(item.latitude, item.longitude)));
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") payloads[start + index] = result.value;
+        });
+      }
+      const failedIndexes = payloads.flatMap((payload, index) => payload ? [] : [index]);
+      if (failedIndexes.length && failedIndexes.length < coordinates.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        for (const index of failedIndexes) {
+          const item = coordinates[index];
+          try {
+            payloads[index] = await fetchMetForecast(item.latitude, item.longitude);
+          } catch (error) {
+            console.warn("MET Norway location retry unavailable:", error.message);
+          }
+        }
+      }
+      return payloads;
+    }
+
     function metCurrentWeather(payload) {
       const point = payload?.properties?.timeseries?.[0];
       const details = point?.data?.instant?.details;
@@ -4020,7 +4044,7 @@
           return;
         }
         element.classList.remove("is-unavailable");
-        element.innerHTML = `<b>Live weather</b> ${weatherIconMarkup(weather.weather_code)} <span class="${temperatureClass(weather.temperature_2m)}">${Math.round(weather.temperature_2m)}&deg;C</span> &middot; ${weatherDescription(weather.weather_code)} &middot; Wind ${Math.round(weather.wind_speed_10m)} mph`;
+        element.innerHTML = `<b>Live weather</b> ${weatherIconMarkup(weather.weather_code)} <span class="${temperatureClass(weather.temperature_2m)}">${Number(weather.temperature_2m).toFixed(1)}&deg;C</span> &middot; ${weatherDescription(weather.weather_code)} &middot; Wind ${Math.round(weather.wind_speed_10m)} mph`;
       });
       renderWeatherIcons();
     }
@@ -4072,14 +4096,16 @@
       } catch (error) {
         console.warn("Open-Meteo unavailable; trying MET Norway:", error.message);
         try {
-          const references = weatherReferences();
-          const fallbackPayloads = await Promise.all(references.map(reference => fetchMetForecast(
-            reference.coordinates.latitude,
-            reference.coordinates.longitude
-          )));
-          applyRegionalWeather(weatherPlaces, references, fallbackPayloads.map(metCurrentWeather));
-          saveWeatherCache(weatherPlaces, "MET Norway regional fallback");
-          weatherUpdatedEl.textContent = weatherUpdateLabel(Date.now(), "MET Norway regional fallback");
+          const fallbackPayloads = await fetchMetForecastBatch(exactCoordinates);
+          exactWeatherPlaces.forEach((place, index) => {
+            weatherByPlace.set(normalizePlaceName(place.name), metCurrentWeather(fallbackPayloads[index]) || false);
+          });
+          weatherPlaces.filter(place => !weatherCoordinates.has(normalizePlaceName(place.name))).forEach(place => {
+            weatherByPlace.set(normalizePlaceName(place.name), false);
+          });
+          if (!fallbackPayloads.some(Boolean)) throw new Error("MET Norway returned no location forecasts");
+          saveWeatherCache(weatherPlaces, "MET Norway exact locations");
+          weatherUpdatedEl.textContent = weatherUpdateLabel(Date.now(), "MET Norway exact locations");
         } catch (fallbackError) {
           console.warn("Live weather fallback unavailable:", fallbackError.message);
           const stale = restoreWeatherCache(weatherPlaces, Number.POSITIVE_INFINITY);
