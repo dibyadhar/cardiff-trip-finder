@@ -398,6 +398,43 @@
       background: var(--purple);
       border-color: var(--purple);
     }
+    .map-toggle {
+      order: 99;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .map-toggle svg { width: 16px; height: 16px; }
+    .places-map-panel {
+      padding: 18px clamp(16px, 4vw, 42px) 22px;
+      background: #0d1210;
+      border-bottom: 1px solid var(--line);
+    }
+    .places-map-panel[hidden] { display: none; }
+    .places-map-inner { max-width: 1600px; margin: 0 auto; }
+    .places-map-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .places-map-heading h2 { margin: 0; font-size: 20px; }
+    .places-map-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+    .places-map {
+      width: 100%;
+      height: 430px;
+      overflow: hidden;
+      border: 1px solid #34433c;
+      border-radius: 7px;
+      background: #121916;
+    }
+    .places-map-loading { display: grid; min-height: 100%; margin: 0; place-items: center; color: var(--muted); }
+    .places-map-popup { min-width: 190px; color: #17231e; line-height: 1.4; }
+    .places-map-popup strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .places-map-popup p { margin: 0 0 8px; font-size: 12px; }
+    .places-map-popup a { display: inline-block; margin: 0 8px 4px 0; color: #176c42; font-size: 12px; font-weight: 800; }
     select {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1592,6 +1629,8 @@
     html[data-theme="light"] .trend-point { border-color: #d5dfda; }
     html[data-theme="light"] .rain-meter { background: #d9e3de; }
     html[data-theme="light"] .wales-weather-map { background: #e4ebe7; border-color: var(--line); }
+    html[data-theme="light"] .places-map-panel { background: #edf4f0; }
+    html[data-theme="light"] .places-map { background: #e4ebe7; border-color: var(--line); }
     html[data-theme="light"] .mobile-nav-drawer { background: #ffffff; }
     html[data-theme="light"] .mobile-menu-toggle { color: var(--ink); background: #ffffff; border-color: #bdcbc5; }
     html[data-theme="light"] .mobile-nav-heading { color: var(--ink); border-color: var(--line); }
@@ -1736,6 +1775,9 @@
       .wales-weather-map { height: 390px; }
       .weather-map-heading { align-items: start; flex-direction: column; gap: 3px; }
       .weather-refresh { padding: 8px 10px; }
+      .places-map-panel { padding: 15px 16px 18px; }
+      .places-map-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .places-map { height: 360px; }
       body {
         padding-bottom: env(safe-area-inset-bottom);
       }
@@ -1761,6 +1803,7 @@
         scrollbar-width: none;
         scroll-snap-type: x proximity;
       }
+      .map-toggle { margin-left: 0; }
       .filters::-webkit-scrollbar, .city-row::-webkit-scrollbar { display: none; }
       .chip, .city-chip {
         flex: 0 0 auto;
@@ -1882,6 +1925,7 @@
     <div class="filters" id="filters"></div>
     <div class="city-row" id="cityFilters" aria-label="City selection">
       <span class="city-label">Area</span>
+      <button class="city-chip map-toggle" id="placesMapToggle" type="button" aria-controls="placesMapPanel" aria-expanded="false" aria-pressed="false"><i data-lucide="map" aria-hidden="true"></i>Map</button>
     </div>
     <div class="meta-row">
       <span id="count"></span>
@@ -1903,6 +1947,18 @@
           <option value="Challenging">Challenging</option>
         </select>
       </label>
+    </div>
+  </section>
+
+  <section class="places-map-panel" id="placesMapPanel" aria-labelledby="placesMapTitle" hidden>
+    <div class="places-map-inner">
+      <header class="places-map-heading">
+        <h2 id="placesMapTitle">Explore places by area</h2>
+        <p id="placesMapStatus" aria-live="polite">Open the map to view matching destinations.</p>
+      </header>
+      <div class="places-map" id="placesMap" aria-label="Interactive map of filtered destinations">
+        <p class="places-map-loading">Loading destination map...</p>
+      </div>
     </div>
   </section>
 
@@ -3133,6 +3189,10 @@
     const themeToggleEl = document.getElementById("themeToggle");
     const emptyEl = document.getElementById("empty");
     const cityFiltersEl = document.getElementById("cityFilters");
+    const placesMapToggleEl = document.getElementById("placesMapToggle");
+    const placesMapPanelEl = document.getElementById("placesMapPanel");
+    const placesMapEl = document.getElementById("placesMap");
+    const placesMapStatusEl = document.getElementById("placesMapStatus");
     const checklistFormEl = document.getElementById("checklistForm");
     const checklistTextEl = document.getElementById("checklistText");
     const checklistCategoryEl = document.getElementById("checklistCategory");
@@ -3158,8 +3218,11 @@
     const weatherByPlace = new Map();
     const weatherTrendByRegion = new Map();
     const weatherMapMarkers = [];
+    const placeMapMarkers = [];
     let walesWeatherMap;
     let weatherTileLayer;
+    let placesMap;
+    let placesTileLayer;
     const weatherOverviewPlaces = [
       { label: "Cardiff", placeName: "Cardiff Castle" },
       { label: "Bannau Brycheiniog", placeName: "Bannau Brycheiniog National Park" },
@@ -3201,6 +3264,7 @@
       themeToggleEl.title = nextLabel;
       themeToggleEl.innerHTML = `<i data-lucide="${nextTheme === "dark" ? "sun" : "moon"}" aria-hidden="true"></i>`;
       if (weatherTileLayer) weatherTileLayer.setUrl(weatherTileUrl(nextTheme));
+      if (placesTileLayer) placesTileLayer.setUrl(weatherTileUrl(nextTheme));
       if (persist) {
         try {
           localStorage.setItem(themeStorageKey, nextTheme);
@@ -3532,13 +3596,62 @@
         button.setAttribute("aria-pressed", city === selectedCity ? "true" : "false");
         button.addEventListener("click", () => {
           selectedCity = city;
-          cityFiltersEl.querySelectorAll("button").forEach(cityButton => {
+          cityFiltersEl.querySelectorAll(".city-chip:not(.map-toggle)").forEach(cityButton => {
             cityButton.setAttribute("aria-pressed", cityButton.textContent === selectedCity ? "true" : "false");
           });
           render();
         });
         cityFiltersEl.appendChild(button);
       });
+    }
+
+    function ensurePlacesMap() {
+      if (placesMap) return true;
+      if (typeof L === "undefined") {
+        placesMapEl.innerHTML = `<p class="places-map-loading">Map unavailable. Check your internet connection.</p>`;
+        return false;
+      }
+      placesMapEl.innerHTML = "";
+      placesMap = L.map(placesMapEl, { scrollWheelZoom: false });
+      placesTileLayer = L.tileLayer(weatherTileUrl(document.documentElement.dataset.theme), {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+      }).addTo(placesMap);
+      return true;
+    }
+
+    function updatePlacesMap() {
+      if (placesMapPanelEl.hidden || !ensurePlacesMap()) return;
+      placeMapMarkers.splice(0).forEach(marker => marker.remove());
+      const mappedPlaces = filteredPlaces().filter(place => weatherCoordinates.has(normalizePlaceName(place.name)));
+      mappedPlaces.forEach(place => {
+        const coordinates = weatherCoordinates.get(normalizePlaceName(place.name));
+        const marker = L.circleMarker([coordinates.latitude, coordinates.longitude], {
+          radius: 7,
+          color: "#ffffff",
+          weight: 2,
+          fillColor: "#2f9d5d",
+          fillOpacity: .95
+        }).addTo(placesMap).bindPopup(`
+          <div class="places-map-popup">
+            <strong>${escapeHtml(place.name)}</strong>
+            <p>${place.distance} mi · about ${place.driveMinutes} min from the stay</p>
+            <a href="${mapUrl(place.destination)}" target="_blank" rel="noopener">From stay</a>
+            <a href="${currentLocationMapUrl(place.destination)}" target="_blank" rel="noopener">From here</a>
+          </div>
+        `);
+        placeMapMarkers.push(marker);
+      });
+      const areaLabel = selectedCity === "All areas" ? "all areas" : selectedCity;
+      placesMapStatusEl.textContent = `${mappedPlaces.length} place${mappedPlaces.length === 1 ? "" : "s"} mapped · ${areaLabel}`;
+      if (placeMapMarkers.length) {
+        const bounds = L.featureGroup(placeMapMarkers).getBounds();
+        if (placeMapMarkers.length === 1) placesMap.setView(bounds.getCenter(), 12);
+        else placesMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 11 });
+      } else {
+        placesMap.setView([51.8, -3.45], 8);
+      }
+      placesMap.invalidateSize();
     }
 
     function filteredPlaces() {
@@ -4028,6 +4141,7 @@
       emptyEl.style.display = result.length ? "none" : "block";
       renderWeatherIcons();
       updateWeatherCards();
+      updatePlacesMap();
     }
 
     const pageTabs = document.querySelectorAll(".page-tab");
@@ -4107,6 +4221,14 @@
     favouriteCardsEl.addEventListener("click", handleFavouriteClick);
     themeToggleEl.addEventListener("click", () => {
       applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
+    placesMapToggleEl.addEventListener("click", () => {
+      const willOpen = placesMapPanelEl.hidden;
+      placesMapPanelEl.hidden = !willOpen;
+      placesMapToggleEl.setAttribute("aria-expanded", String(willOpen));
+      placesMapToggleEl.setAttribute("aria-pressed", String(willOpen));
+      placesMapToggleEl.setAttribute("aria-label", willOpen ? "Hide destination map" : "Show destination map");
+      if (willOpen) requestAnimationFrame(updatePlacesMap);
     });
     weatherRefreshEl.addEventListener("click", () => loadWeather({ force: true }));
     saveParkingEl.addEventListener("click", () => {
