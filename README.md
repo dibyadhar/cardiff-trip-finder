@@ -9,3 +9,5 @@ The site is static and can be hosted directly with GitHub Pages from the `main` 
 ## Shared List
 
 The grocery and trip checklist uses Supabase. Its browser-safe publishable key is stored in `supabase-config.js`; access is controlled by Row Level Security policies defined in `supabase-setup.sql`.
+
+Destination favourites are stored locally in each browser so they work without an account or network connection.

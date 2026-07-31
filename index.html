@@ -45,6 +45,10 @@
       font-size: 15px;
       line-height: 1.45;
     }
+    .header-top {
+      display: block;
+    }
+    .header-copy { min-width: 0; }
     .page-tabs {
       display: flex;
       gap: 4px;
@@ -441,6 +445,29 @@
       font-size: 10px;
       font-weight: 700;
     }
+    .favorite-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, .32);
+      border-radius: 50%;
+      padding: 0;
+      color: #fff;
+      background: rgba(12, 16, 14, .84);
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+    }
+    .favorite-button svg { width: 20px; height: 20px; pointer-events: none; }
+    .favorite-button.is-favourite {
+      color: #ff7186;
+      border-color: rgba(255, 113, 134, .7);
+    }
+    .favorite-button.is-favourite svg { fill: currentColor; }
     .content {
       padding: 13px 14px 14px;
       display: flex;
@@ -1050,6 +1077,21 @@
     }
     .food-detail strong { color: var(--ink); }
     .food-search { width: fit-content; color: #071009; background: var(--green); border-color: var(--green); }
+    .favourites-view { padding: 24px clamp(16px, 4vw, 42px) 42px; background: #090b0a; }
+    .favourites-inner { max-width: 1600px; margin: 0 auto; }
+    .favourites-intro { margin-bottom: 18px; }
+    .favourites-intro h2 { margin: 0 0 7px; font-size: 28px; }
+    .favourites-intro p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .favourites-empty {
+      border: 1px dashed #3c4943;
+      border-radius: 8px;
+      padding: 24px;
+      color: var(--muted);
+      background: var(--card);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .favourites-empty[hidden] { display: none; }
     .checklist-view, .parking-view { background: #090b0a; }
     .checklist-inner { max-width: 820px; margin: 0 auto; }
     .checklist-intro { margin-bottom: 18px; }
@@ -1607,6 +1649,7 @@
       .food-resources { display: grid; grid-template-columns: 1fr; margin-top: 14px; }
       .food-grid { grid-template-columns: 1fr; }
       .food-search { width: 100%; }
+      .favourites-view { padding: 20px 16px 24px; }
       .checklist-view, .parking-view { padding: 20px 16px 24px; }
       .checklist-form { grid-template-columns: minmax(0, 1fr) auto; }
       .checklist-form input { grid-column: 1 / -1; }
@@ -1643,8 +1686,12 @@
 </head>
 <body>
   <header>
-    <h1>Cardiff Trip Finder</h1>
-    <p class="subtitle">Choose the type of place you want, then compare realistic driving distance from CF10 3EA, direction, best time to go, official links, map navigation and useful nearby stops.</p>
+    <div class="header-top">
+      <div class="header-copy">
+        <h1>Cardiff Trip Finder</h1>
+        <p class="subtitle">Choose the type of place you want, then compare realistic driving distance from CF10 3EA, direction, best time to go, official links, map navigation and useful nearby stops.</p>
+      </div>
+    </div>
     <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavDrawer" aria-expanded="false">
       <i data-lucide="menu" aria-hidden="true"></i>Menu
     </button>
@@ -1660,6 +1707,7 @@
         <button class="page-tab" id="recommendedTab" type="button" role="tab" aria-selected="false" aria-controls="recommendedView">Recommended</button>
         <button class="page-tab" id="homeStayTab" type="button" role="tab" aria-selected="false" aria-controls="homeView">Stay</button>
         <button class="page-tab" id="foodTab" type="button" role="tab" aria-selected="false" aria-controls="foodView">Food</button>
+        <button class="page-tab" id="favouritesTab" type="button" role="tab" aria-selected="false" aria-controls="favouritesView">My favourites</button>
         <button class="page-tab" id="parkingTab" type="button" role="tab" aria-selected="false" aria-controls="parkingView">Parking</button>
         <button class="page-tab" id="checklistTab" type="button" role="tab" aria-selected="false" aria-controls="checklistView">My list</button>
         <button class="page-tab" id="instagramTab" type="button" role="tab" aria-selected="false" aria-controls="instagramView">Instagram</button>
@@ -1726,6 +1774,18 @@
     <p class="footer-credit">Made by Dibya with <i data-lucide="heart" aria-label="love"></i></p>
   </footer>
   </div>
+
+  <main class="favourites-view" id="favouritesView" role="tabpanel" aria-labelledby="favouritesTab" hidden>
+    <div class="favourites-inner">
+      <header class="favourites-intro">
+        <p class="weather-eyebrow">Your saved places</p>
+        <h2>My favourites</h2>
+        <p id="favouritesDescription">Tap the heart on any destination to save it on this device.</p>
+      </header>
+      <section class="grid" id="favouriteCards" aria-live="polite"></section>
+      <p class="favourites-empty" id="favouritesEmpty">No favourites yet. Open Explore and tap a heart to add one.</p>
+    </div>
+  </main>
 
   <div class="weather-view" id="weatherView" role="tabpanel" aria-labelledby="weatherTab" hidden>
     <section class="weather-overview" aria-labelledby="weatherOverviewTitle">
@@ -2909,6 +2969,9 @@
     const checklistCategoryEl = document.getElementById("checklistCategory");
     const checklistSummaryEl = document.getElementById("checklistSummary");
     const checklistSyncStatusEl = document.getElementById("checklistSyncStatus");
+    const favouriteCardsEl = document.getElementById("favouriteCards");
+    const favouritesEmptyEl = document.getElementById("favouritesEmpty");
+    const favouritesDescriptionEl = document.getElementById("favouritesDescription");
     const clearCompletedEl = document.getElementById("clearCompleted");
     const tripListEl = document.getElementById("tripList");
     const checklistEmptyEl = document.getElementById("checklistEmpty");
@@ -2937,6 +3000,7 @@
     ];
     const checklistStorageKey = "cardiff-trip-finder-checklist-v1";
     const parkingStorageKey = "cardiff-trip-finder-parking-v1";
+    const favouriteStorageKey = "cardiff-trip-finder-favourites-v1";
     const supabaseConfig = window.TRIP_SUPABASE_CONFIG;
     const supabaseClient = window.supabase && supabaseConfig
       ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey, {
@@ -2946,9 +3010,28 @@
     let checklistItems = loadChecklistItems();
     let savedParking = loadSavedParking();
     let selectedCity = "All areas";
+    const favouritePlaceKeys = loadFavouritePlaceKeys();
 
     function checklistId() {
       return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function loadFavouritePlaceKeys() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(favouriteStorageKey) || "[]");
+        if (Array.isArray(stored)) return new Set(stored.filter(value => typeof value === "string"));
+      } catch (error) {
+        // Favourites remain available for this session when storage is unavailable.
+      }
+      return new Set();
+    }
+
+    function saveFavouritePlaceKeys() {
+      try {
+        localStorage.setItem(favouriteStorageKey, JSON.stringify([...favouritePlaceKeys]));
+      } catch (error) {
+        // Keep favourites available for this session when storage is unavailable.
+      }
     }
 
     function loadSavedParking() {
@@ -3212,6 +3295,36 @@
       return `<span class="tag" style="background:${colours[cat] || "#34714f"}">${cat}</span>`;
     }
 
+    function renderFavourites() {
+      const savedPlaces = places.filter(place => favouritePlaceKeys.has(normalizePlaceName(place.name)));
+      favouriteCardsEl.innerHTML = savedPlaces.map(placeCardHtml).join("");
+      if (savedPlaces.length === 0) {
+        favouritesDescriptionEl.textContent = "Tap the heart on any destination to save it on this device.";
+        favouritesEmptyEl.textContent = "No favourites yet. Open Explore and tap a heart to add one.";
+        favouritesEmptyEl.hidden = false;
+      } else {
+        favouritesDescriptionEl.textContent = `${savedPlaces.length} place${savedPlaces.length === 1 ? "" : "s"} saved on this device.`;
+        favouritesEmptyEl.hidden = true;
+      }
+      renderWeatherIcons();
+      updateWeatherCards();
+    }
+
+    function toggleFavourite(placeKey) {
+      const wasSaved = favouritePlaceKeys.has(placeKey);
+      if (wasSaved) favouritePlaceKeys.delete(placeKey);
+      else favouritePlaceKeys.add(placeKey);
+      saveFavouritePlaceKeys();
+      render();
+      renderFavourites();
+    }
+
+    function handleFavouriteClick(event) {
+      const button = event.target.closest("[data-favourite-key]");
+      if (!button) return;
+      toggleFavourite(button.dataset.favouriteKey);
+    }
+
     function weatherDescription(code) {
       if (code === 0) return "Clear";
       if (code <= 2) return "Partly cloudy";
@@ -3465,17 +3578,17 @@
       updateWeatherCards();
     }
 
-    function render() {
-      const result = filteredPlaces();
-      cardsEl.innerHTML = result.map(place => {
+    function placeCardHtml(place) {
         const recommended = isRecommendedPlace(place);
         const googleRating = googleRatingFor(place);
         const accessibility = accessibilityFor(place);
         const weatherKey = normalizePlaceName(place.name);
+        const isFavourite = favouritePlaceKeys.has(weatherKey);
         return `
         <article class="card${recommended ? " is-recommended" : ""}"${recommended ? ` aria-label="${place.name}, recommended itinerary"` : ""}>
           <div class="photo">
             <img src="${place.image}" alt="${place.name}" loading="lazy">
+            <button class="favorite-button${isFavourite ? " is-favourite" : ""}" type="button" data-favourite-key="${weatherKey}" aria-label="${isFavourite ? "Remove" : "Save"} ${place.name} ${isFavourite ? "from" : "to"} favourites" aria-pressed="${isFavourite}" title="${isFavourite ? "Remove from favourites" : "Save to favourites"}"><i data-lucide="heart" aria-hidden="true"></i></button>
             <div class="distance">${place.distance} mi | ${place.driveMinutes} min</div>
             <div class="google-rating" aria-label="Google rating ${googleRating.score} out of 5 from ${googleRating.reviews.toLocaleString("en-GB")} reviews">Google ${googleRating.score.toFixed(1)} &#9733; <small>${googleRating.reviews.toLocaleString("en-GB")}</small></div>
           </div>
@@ -3497,9 +3610,14 @@
           </div>
         </article>
       `;
-      }).join("");
+    }
+
+    function render() {
+      const result = filteredPlaces();
+      cardsEl.innerHTML = result.map(placeCardHtml).join("");
       countEl.textContent = `${result.length} place${result.length === 1 ? "" : "s"} shown`;
       emptyEl.style.display = result.length ? "none" : "block";
+      renderWeatherIcons();
       updateWeatherCards();
     }
 
@@ -3512,6 +3630,7 @@
     const weatherView = document.getElementById("weatherView");
     const homeView = document.getElementById("homeView");
     const foodView = document.getElementById("foodView");
+    const favouritesView = document.getElementById("favouritesView");
     const parkingView = document.getElementById("parkingView");
     const checklistView = document.getElementById("checklistView");
     const instagramView = document.getElementById("instagramView");
@@ -3522,6 +3641,7 @@
       recommendedTab: recommendedView,
       homeStayTab: homeView,
       foodTab: foodView,
+      favouritesTab: favouritesView,
       parkingTab: parkingView,
       checklistTab: checklistView,
       instagramTab: instagramView
@@ -3574,6 +3694,8 @@
 
     sortEl.addEventListener("change", render);
     accessibilityFilterEl.addEventListener("change", render);
+    cardsEl.addEventListener("click", handleFavouriteClick);
+    favouriteCardsEl.addEventListener("click", handleFavouriteClick);
     weatherRefreshEl.addEventListener("click", loadWeather);
     saveParkingEl.addEventListener("click", () => {
       if (!window.isSecureContext || !navigator.geolocation) {
@@ -3672,6 +3794,7 @@
     makeFilters();
     makeCityFilters();
     render();
+    renderFavourites();
     renderChecklist();
     loadSharedChecklist({ seedWhenEmpty: true });
     subscribeToSharedChecklist();
