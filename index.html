@@ -3487,6 +3487,80 @@
       return "Current conditions";
     }
 
+    function metWeatherCode(symbol = "") {
+      if (symbol.includes("thunder")) return 95;
+      if (symbol.includes("snow")) return symbol.includes("showers") ? 85 : 71;
+      if (symbol.includes("sleet")) return 66;
+      if (symbol.includes("rain")) return symbol.includes("showers") ? 80 : 61;
+      if (symbol.includes("fog")) return 45;
+      if (symbol.includes("cloudy")) return 3;
+      if (symbol.includes("partlycloudy")) return 2;
+      if (symbol.includes("fair")) return 1;
+      return 0;
+    }
+
+    async function fetchMetForecast(latitude, longitude) {
+      const response = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latitude}&lon=${longitude}`);
+      if (!response.ok) throw new Error(`MET Norway request failed (${response.status})`);
+      return response.json();
+    }
+
+    function metCurrentWeather(payload) {
+      const point = payload?.properties?.timeseries?.[0];
+      const details = point?.data?.instant?.details;
+      if (!details) return false;
+      return {
+        temperature_2m: details.air_temperature,
+        weather_code: metWeatherCode(point.data.next_1_hours?.summary?.symbol_code),
+        wind_speed_10m: details.wind_speed * 2.23694,
+        precipitation: point.data.next_1_hours?.details?.precipitation_amount || 0
+      };
+    }
+
+    function metTrendPoints(payload) {
+      const series = payload?.properties?.timeseries;
+      if (!Array.isArray(series) || !series.length) return null;
+      return [0, 3, 6, 9, 12].map(offset => {
+        const point = series[Math.min(offset, series.length - 1)];
+        const details = point.data.instant.details;
+        const weatherCode = metWeatherCode(point.data.next_1_hours?.summary?.symbol_code);
+        const precipitation = point.data.next_1_hours?.details?.precipitation_amount || 0;
+        return {
+          time: point.time,
+          temperature: details.air_temperature,
+          weatherCode,
+          rain: Math.min(100, precipitation * 25),
+          rainLabel: `Rain ${Number(precipitation).toFixed(1)} mm`
+        };
+      });
+    }
+
+    function weatherReferences() {
+      return weatherOverviewPlaces.map(item => {
+        const key = normalizePlaceName(item.placeName);
+        return { key, coordinates: weatherCoordinates.get(key) };
+      }).filter(item => item.coordinates);
+    }
+
+    function applyRegionalWeather(weatherPlaces, references, reports) {
+      weatherPlaces.forEach(place => {
+        const placeCoordinates = weatherCoordinates.get(normalizePlaceName(place.name));
+        if (!placeCoordinates) {
+          weatherByPlace.set(normalizePlaceName(place.name), false);
+          return;
+        }
+        const nearestIndex = references.reduce((bestIndex, reference, index) => {
+          const best = references[bestIndex].coordinates;
+          const distance = (reference.coordinates.latitude - placeCoordinates.latitude) ** 2
+            + (reference.coordinates.longitude - placeCoordinates.longitude) ** 2;
+          const bestDistance = (best.latitude - placeCoordinates.latitude) ** 2
+            + (best.longitude - placeCoordinates.longitude) ** 2;
+          return distance < bestDistance ? index : bestIndex;
+        }, 0);
+        weatherByPlace.set(normalizePlaceName(place.name), reports[nearestIndex] || false);
+      });
+    }
+
     function weatherIconName(code) {
       if (code === 0) return "sun";
       if (code <= 2) return "cloud-sun";
@@ -3559,12 +3633,12 @@
           `;
         }
         const pointMarkup = points ? points.map((point, index) => `
-          <div class="trend-point" title="${weatherDescription(point.weatherCode)}, ${point.rain}% chance of rain">
+          <div class="trend-point" title="${weatherDescription(point.weatherCode)}, ${point.rainLabel || `${point.rain}% chance of rain`}">
             <time class="trend-time" datetime="${point.time}">${index === 0 ? "Now" : point.time.slice(11, 16)}</time>
             ${weatherIconMarkup(point.weatherCode, "trend-weather-icon")}
             <strong class="trend-temperature ${temperatureClass(point.temperature)}">${Math.round(point.temperature)}&deg;</strong>
             <div class="rain-meter" aria-hidden="true"><span style="--rain:${point.rain}%"></span></div>
-            <span class="trend-rain">Rain ${point.rain}%</span>
+            <span class="trend-rain">${point.rainLabel || `Rain ${point.rain}%`}</span>
           </div>
         `).join("") : `<p class="weather-wind">Loading 12-hour trend...</p>`;
         return `
@@ -3641,7 +3715,7 @@
 
       try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error("Weather trend request failed");
+        if (!response.ok) throw new Error(`Open-Meteo trend request failed (${response.status})`);
         const payload = await response.json();
         const reports = Array.isArray(payload) ? payload : [payload];
         weatherTrendRegions.forEach((region, regionIndex) => {
@@ -3664,7 +3738,16 @@
           weatherTrendByRegion.set(region.label, points);
         });
       } catch (error) {
-        weatherTrendRegions.forEach(region => weatherTrendByRegion.set(region.label, false));
+        console.warn("Open-Meteo trend unavailable; trying MET Norway:", error.message);
+        try {
+          const fallbackReports = await Promise.all(weatherTrendRegions.map(region => fetchMetForecast(region.latitude, region.longitude)));
+          weatherTrendRegions.forEach((region, index) => {
+            weatherTrendByRegion.set(region.label, metTrendPoints(fallbackReports[index]) || false);
+          });
+        } catch (fallbackError) {
+          console.warn("Weather trend fallback unavailable:", fallbackError.message);
+          weatherTrendRegions.forEach(region => weatherTrendByRegion.set(region.label, false));
+        }
       }
       weatherTrendEl.setAttribute("aria-busy", "false");
       updateWeatherTrends();
@@ -3691,10 +3774,10 @@
 
     async function loadWeather() {
       const weatherPlaces = places.filter(place => googleRatingFor(place)?.score >= 4);
-      const coordinates = weatherPlaces.map(place => weatherCoordinates.get(normalizePlaceName(place.name)));
+      const references = weatherReferences();
       const url = new URL("https://api.open-meteo.com/v1/forecast");
-      url.searchParams.set("latitude", coordinates.map(item => item.latitude).join(","));
-      url.searchParams.set("longitude", coordinates.map(item => item.longitude).join(","));
+      url.searchParams.set("latitude", references.map(item => item.coordinates.latitude).join(","));
+      url.searchParams.set("longitude", references.map(item => item.coordinates.longitude).join(","));
       url.searchParams.set("current", "temperature_2m,weather_code,wind_speed_10m,precipitation");
       url.searchParams.set("wind_speed_unit", "mph");
       url.searchParams.set("timezone", "auto");
@@ -3707,16 +3790,25 @@
 
       try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error("Weather request failed");
+        if (!response.ok) throw new Error(`Open-Meteo request failed (${response.status})`);
         const payload = await response.json();
         const reports = Array.isArray(payload) ? payload : [payload];
-        weatherPlaces.forEach((place, index) => {
-          weatherByPlace.set(normalizePlaceName(place.name), reports[index]?.current || false);
-        });
+        applyRegionalWeather(weatherPlaces, references, reports.map(report => report?.current || false));
         weatherUpdatedEl.textContent = `Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · refreshes every 15 minutes`;
       } catch (error) {
-        weatherPlaces.forEach(place => weatherByPlace.set(normalizePlaceName(place.name), false));
-        weatherUpdatedEl.textContent = "Live weather unavailable. Check your internet connection.";
+        console.warn("Open-Meteo unavailable; trying MET Norway:", error.message);
+        try {
+          const fallbackPayloads = await Promise.all(references.map(reference => fetchMetForecast(
+            reference.coordinates.latitude,
+            reference.coordinates.longitude
+          )));
+          applyRegionalWeather(weatherPlaces, references, fallbackPayloads.map(metCurrentWeather));
+          weatherUpdatedEl.textContent = `Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} via MET Norway · refreshes every 15 minutes`;
+        } catch (fallbackError) {
+          console.warn("Live weather fallback unavailable:", fallbackError.message);
+          weatherPlaces.forEach(place => weatherByPlace.set(normalizePlaceName(place.name), false));
+          weatherUpdatedEl.textContent = "Live weather unavailable. Check your internet connection.";
+        }
       }
       weatherOverviewEl.setAttribute("aria-busy", "false");
       await trendRequest;
