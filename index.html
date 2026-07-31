@@ -987,6 +987,69 @@
       text-decoration: none;
     }
     .instagram-link svg { width: 16px; height: 16px; }
+    .food-view { padding: 24px clamp(16px, 4vw, 42px) 42px; background: #090b0a; }
+    .food-inner { max-width: 1180px; margin: 0 auto; }
+    .food-intro {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .food-intro h2 { margin: 0 0 7px; font-size: 28px; }
+    .food-intro p { max-width: 720px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .food-resources { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; }
+    .food-resources a,
+    .food-search {
+      display: inline-flex;
+      min-height: 42px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid #34423b;
+      border-radius: 7px;
+      padding: 9px 11px;
+      color: var(--ink);
+      background: #171e1b;
+      font-size: 12px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+    .food-resources a:first-child { color: #071009; background: var(--green); border-color: var(--green); }
+    .food-resources svg, .food-search svg { width: 16px; height: 16px; }
+    .food-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .food-card {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto auto;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--card);
+    }
+    .food-kind {
+      width: fit-content;
+      margin-bottom: 9px;
+      border-radius: 5px;
+      padding: 4px 7px;
+      color: #071009;
+      background: var(--gold);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .food-card h3 { margin: 0 0 7px; color: var(--ink); font-size: 18px; }
+    .food-card > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .food-detail {
+      margin: 13px 0 12px;
+      padding-top: 11px;
+      border-top: 1px solid var(--line);
+      color: #aebbb5;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .food-detail strong { color: var(--ink); }
+    .food-search { width: fit-content; color: #071009; background: var(--green); border-color: var(--green); }
     .checklist-view, .parking-view { background: #090b0a; }
     .checklist-inner { max-width: 820px; margin: 0 auto; }
     .checklist-intro { margin-bottom: 18px; }
@@ -1539,6 +1602,11 @@
       .trust-action { justify-content: center; }
       .instagram-view { padding: 20px 16px 24px; }
       .instagram-grid { grid-template-columns: 1fr; }
+      .food-view { padding: 20px 16px 24px; }
+      .food-intro { display: block; }
+      .food-resources { display: grid; grid-template-columns: 1fr; margin-top: 14px; }
+      .food-grid { grid-template-columns: 1fr; }
+      .food-search { width: 100%; }
       .checklist-view, .parking-view { padding: 20px 16px 24px; }
       .checklist-form { grid-template-columns: minmax(0, 1fr) auto; }
       .checklist-form input { grid-column: 1 / -1; }
@@ -1591,6 +1659,7 @@
         <button class="page-tab" id="weatherTab" type="button" role="tab" aria-selected="false" aria-controls="weatherView">Weather</button>
         <button class="page-tab" id="recommendedTab" type="button" role="tab" aria-selected="false" aria-controls="recommendedView">Recommended</button>
         <button class="page-tab" id="homeStayTab" type="button" role="tab" aria-selected="false" aria-controls="homeView">Stay</button>
+        <button class="page-tab" id="foodTab" type="button" role="tab" aria-selected="false" aria-controls="foodView">Food</button>
         <button class="page-tab" id="parkingTab" type="button" role="tab" aria-selected="false" aria-controls="parkingView">Parking</button>
         <button class="page-tab" id="checklistTab" type="button" role="tab" aria-selected="false" aria-controls="checklistView">My list</button>
         <button class="page-tab" id="instagramTab" type="button" role="tab" aria-selected="false" aria-controls="instagramView">Instagram</button>
@@ -1796,6 +1865,80 @@
       </div>
       <ul class="trip-list" id="tripList"></ul>
       <p class="checklist-empty" id="checklistEmpty" hidden>Your list is empty.</p>
+    </div>
+  </main>
+
+  <main class="food-view" id="foodView" role="tabpanel" aria-labelledby="foodTab" hidden>
+    <div class="food-inner">
+      <header class="food-intro">
+        <div>
+          <p class="weather-eyebrow">Welsh flavours</p>
+          <h2>Unique Welsh food to try</h2>
+          <p>Traditional savoury dishes, bakes, seafood and local produce worth looking for during the trip.</p>
+        </div>
+        <div class="food-resources">
+          <a href="https://www.visitwales.com/things-do/food-and-drink" target="_blank" rel="noopener"><i data-lucide="external-link" aria-hidden="true"></i>Visit Wales food guide</a>
+          <a href="https://www.visitcardiff.com/highlights/cardiff-market/" target="_blank" rel="noopener"><i data-lucide="store" aria-hidden="true"></i>Cardiff Market</a>
+        </div>
+      </header>
+      <section class="food-grid" aria-label="Welsh foods">
+        <article class="food-card">
+          <span class="food-kind">Sweet bake</span>
+          <h3>Welsh cakes</h3>
+          <p>Small griddle-cooked cakes with currants and warm spice, finished with a dusting of sugar.</p>
+          <p class="food-detail"><strong>Try them:</strong> Fresh and slightly warm. Usually vegetarian; commonly contains gluten, dairy and egg.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Welsh+cakes+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Comfort food</span>
+          <h3>Cawl</h3>
+          <p>A warming Welsh broth or stew, traditionally made with lamb or beef, leeks and root vegetables.</p>
+          <p class="food-detail"><strong>Best for:</strong> A cool or rainy day. Recipes vary, so ask about meat and allergens.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Welsh+cawl+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Cheese dish</span>
+          <h3>Welsh rarebit</h3>
+          <p>Toast covered with a rich savoury cheese sauce, often sharpened with mustard and sometimes ale.</p>
+          <p class="food-detail"><strong>Good to know:</strong> Usually vegetarian; commonly contains gluten, dairy and mustard.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Welsh+rarebit+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Vegetarian classic</span>
+          <h3>Glamorgan sausage</h3>
+          <p>A meat-free Welsh sausage made with cheese, leeks and breadcrumbs, then fried until crisp.</p>
+          <p class="food-detail"><strong>Good to know:</strong> Vegetarian, but commonly contains gluten, dairy and egg.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Glamorgan+sausage+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Tea loaf</span>
+          <h3>Bara brith</h3>
+          <p>A fruity Welsh tea loaf packed with dried fruit and gentle spice, usually served sliced.</p>
+          <p class="food-detail"><strong>Try it:</strong> With tea and a little butter. Ingredients vary by bakery.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Bara+brith+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Sea vegetable</span>
+          <h3>Laverbread</h3>
+          <p>Slow-cooked laver seaweed with a deep savoury flavour, often served as part of a Welsh breakfast.</p>
+          <p class="food-detail"><strong>Try it:</strong> In patties or alongside eggs; breakfast pairings may include meat or shellfish.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Laverbread+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Local produce</span>
+          <h3>Caerphilly cheese</h3>
+          <p>A crumbly Welsh cheese with a fresh, lightly tangy character and a creamy layer near the rind.</p>
+          <p class="food-detail"><strong>Look for it:</strong> At markets and specialist cheese counters; ask about the producer and rennet.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Caerphilly+cheese+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+        <article class="food-card">
+          <span class="food-kind">Welsh seafood</span>
+          <h3>Cockles and laverbread</h3>
+          <p>A distinctive coastal pairing of briny cockles and savoury laver seaweed, strongly associated with South Wales.</p>
+          <p class="food-detail"><strong>Good to know:</strong> Contains shellfish. Check daily availability before making a special journey.</p>
+          <a class="food-search" href="https://www.google.com/maps/search/?api=1&amp;query=Cockles+and+laverbread+near+CF10+3EA" target="_blank" rel="noopener"><i data-lucide="map-pin" aria-hidden="true"></i>Find nearby</a>
+        </article>
+      </section>
     </div>
   </main>
 
@@ -3368,6 +3511,7 @@
     const exploreView = document.getElementById("exploreView");
     const weatherView = document.getElementById("weatherView");
     const homeView = document.getElementById("homeView");
+    const foodView = document.getElementById("foodView");
     const parkingView = document.getElementById("parkingView");
     const checklistView = document.getElementById("checklistView");
     const instagramView = document.getElementById("instagramView");
@@ -3377,6 +3521,7 @@
       weatherTab: weatherView,
       recommendedTab: recommendedView,
       homeStayTab: homeView,
+      foodTab: foodView,
       parkingTab: parkingView,
       checklistTab: checklistView,
       instagramTab: instagramView
