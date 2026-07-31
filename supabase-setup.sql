@@ -2,10 +2,13 @@ create table if not exists public.trip_list_items (
   id text primary key,
   text text not null check (char_length(text) between 1 and 120),
   category text not null check (category in ('Grocery', 'Packing', 'Booking', 'Activity', 'Other')),
+  trip_date date,
   done boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.trip_list_items add column if not exists trip_date date;
 
 alter table public.trip_list_items enable row level security;
 
